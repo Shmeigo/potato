@@ -6,7 +6,6 @@
 #include <iostream>
 #include <cassert>
 #include <unordered_map>
-
 #include "NetworkPlayer.hpp"
 
 #ifdef _WIN32
@@ -94,6 +93,8 @@ int main(int argc, char **argv) {
 					auto f = players.find(c);
 					assert(f != players.end());
 					players.erase(f);
+					// make its id available
+					Server_Player::id_used[f->second.id-1] = false;
 				} 
 				else { assert(evt == Connection::OnRecv);
 					//got data from client:

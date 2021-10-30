@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include "Connection.hpp"
 #include <vector>
+#include <array>
 #include <iostream>
 
 // how many players in our game 
@@ -45,6 +46,7 @@ public:
     void read_from_message(Connection * c);
 
     static size_t Server_Player_mes_size;
+    static std::array<bool, PLAYER_NUM> id_used;
 };
 
 // -------- unions for convertion ---------- //

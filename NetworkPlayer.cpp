@@ -2,6 +2,7 @@
 
 size_t Client_Player::Client_Player_mes_size = sizeof(glm::vec3) + sizeof(glm::quat);
 size_t Server_Player::Server_Player_mes_size = sizeof(uint8_t) + sizeof(glm::vec3) + sizeof(glm::quat);
+std::array<bool, PLAYER_NUM> Server_Player::id_used = {false};
 
 // -------------- client side ------------ //
 
@@ -46,9 +47,16 @@ void Client_Player::read_from_message(const std::vector<unsigned char> & server_
 // -------------- server side ------------ //
 
 Server_Player::Server_Player() {
-    static uint8_t next_player_id = 1;
-    id = next_player_id;
-    next_player_id += 1;
+    // find the first non-used id
+    id = 0;
+    for (size_t i=0; i < id_used.size(); i++){
+        if(!id_used[i]){
+            id = (uint8_t)i + 1;
+            id_used[i] = true;
+            break;
+        }
+    }   
+    assert(id != 0);
     position = glm::vec3(-7,-1,0);;
     rotation = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 }
