@@ -128,12 +128,15 @@ int main(int argc, char **argv) {
 					player_other.convert_to_message(server_message);
 				}
 			}
-
-			//send an update starting with 'm', a 24-bit size, and a blob of text:
+			//send an update starting with 'm'
 			c->send('m');
-			c->send(uint8_t(server_message.size() >> 16));
-			c->send(uint8_t((server_message.size() >> 8) % 256));
-			c->send(uint8_t(server_message.size() % 256));
+			// send size
+			sizet_as_byte sizet_bytes;
+			sizet_bytes.sizet_value = server_message.size();
+			for (size_t i =0; i < sizeof(size_t); i++){
+				c->send(sizet_bytes.bytes_value[i]);
+			}
+			// send message
 			c->send_buffer.insert(c->send_buffer.end(), server_message.begin(), server_message.end());
 		}
 

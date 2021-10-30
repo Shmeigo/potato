@@ -42,8 +42,9 @@ PlayMode::PlayMode(Client &client_) : client(client_),scene(*stage_scene) {
 	// get the transforms of all players' models 
 	for (auto &transform : scene.transforms) {
 		for(uint8_t i =0; i < PLAYER_NUM; i++){
-			if (transform.name == "Player" + std::to_string(i+1)) 
+			if (transform.name == "Player" + std::to_string(i+1)) {
 				players_transform[i] = &transform;
+			}
 		}
 	}
 	// disable other players' drawing, util recieve other players' info from server
@@ -205,33 +206,40 @@ void PlayMode::update(float elapsed) {
 	client.poll([this](Connection *c, Connection::Event event){
 		if (event == Connection::OnOpen) {
 			std::cout << "[" << c->socket << "] opened" << std::endl;
-		} else if (event == Connection::OnClose) {
+		} 
+		else if (event == Connection::OnClose) {
 			std::cout << "[" << c->socket << "] closed (!)" << std::endl;
 			throw std::runtime_error("Lost connection to server!");
-		} else { assert(event == Connection::OnRecv);
+		} 
+		else { assert(event == Connection::OnRecv);
 			//std::cout << "[" << c->socket << "] recv'd data. Current buffer:\n" << hex_dump(c->recv_buffer); std::cout.flush();
-			//expecting message(s) like 'm' + 3-byte length + length bytes of text:
-			while (c->recv_buffer.size() >= 4) {
+			// descriptor: 'm' + size_of_message
+			size_t descriptor_size = 1 + sizeof(size_t);
+			
+			while (c->recv_buffer.size() >= descriptor_size) {
 				//std::cout << "[" << c->socket << "] recv'd data. Current buffer:\n" << hex_dump(c->recv_buffer); std::cout.flush();
 				char type = c->recv_buffer[0];
 				if (type != 'm') {
 					throw std::runtime_error("Server sent unknown message type '" + std::to_string(type) + "'");
 				}
-				uint32_t size = (
-					(uint32_t(c->recv_buffer[1]) << 16) | (uint32_t(c->recv_buffer[2]) << 8) | (uint32_t(c->recv_buffer[3]))
-				);
-				if (c->recv_buffer.size() < 4 + size) break; //if whole message isn't here, can't process
+				// get size
+				sizet_as_byte sizet_bytes;
+				for(size_t i=0; i < sizeof(size_t); i++){
+					sizet_bytes.bytes_value[i] = c->recv_buffer[1+i];
+				}
+				size_t size = sizet_bytes.sizet_value;
+				if (c->recv_buffer.size() < descriptor_size + size) break; //if whole message isn't here, can't process
 				//whole message *is* here, so set current server message:
-				server_message = std::vector<unsigned char>(c->recv_buffer.begin() + 4, c->recv_buffer.begin() + 4 + size);
-
+				server_message = std::vector<unsigned char>(c->recv_buffer.begin() + descriptor_size, c->recv_buffer.begin() + descriptor_size + size);
 				//and consume this part of the buffer:
-				c->recv_buffer.erase(c->recv_buffer.begin(), c->recv_buffer.begin() + 4 + size);
+				c->recv_buffer.erase(c->recv_buffer.begin(), c->recv_buffer.begin() + descriptor_size + size);
 			}
 		}
 	}, 0.0);
 
 	// update local state according to the server's message
 	{
+		assert(server_message.size() > 0);
 		// read the public stuff before offset. These are infos same for all players.
 		ping = (bool)server_message[0];
 		size_t i_offset = 1; // message after this contains all players' individual infos

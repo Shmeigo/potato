@@ -9,16 +9,16 @@
 #include <iostream>
 
 // how many players in our game 
-static const size_t PLAYER_NUM = 4;
+static const size_t PLAYER_NUM = 16;
 
 // ------------ player class on the client side ------------ //
 // (how/what client track the infos of players)
 class Client_Player {
 public:
-
     // info that will be sent to server
     glm::vec3 position;
     glm::quat rotation;
+
     Client_Player(){};
     Client_Player(glm::vec3 position_, glm::quat rotation_):position(position_),rotation(rotation_){};
     // convert client side player's info into bytes
@@ -32,13 +32,12 @@ public:
 // ------------- player class on the server side ---------------- //
 // (how/what server track the infos of players)
 class Server_Player {
-
+public:
     // info that will be sent to client
     uint8_t id;
     glm::vec3 position;
     glm::quat rotation;
 
-public:
     Server_Player();
     // convert server side player's info into bytes
     void convert_to_message(std::vector<unsigned char> & server_message);
@@ -58,4 +57,9 @@ union quat_as_byte
 {
 	glm::quat quat_value;
 	unsigned char bytes_value[sizeof(glm::quat)];
+};
+union sizet_as_byte
+{
+	size_t sizet_value;
+	unsigned char bytes_value[sizeof(size_t)];
 };
