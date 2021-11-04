@@ -212,7 +212,7 @@ Server::Server(std::string const &port) {
 		//based on example code in the 'man getaddrinfo' man page on OSX:
 		for (struct addrinfo *info = res; info != nullptr; info = info->ai_next) {
 			{ //DEBUG: dump info about this address:
-				std::cout << "\ttrying ";
+				std::cout << "\t ";
 				char ip[INET6_ADDRSTRLEN];
 				if (info->ai_family == AF_INET) {
 					struct sockaddr_in *s = reinterpret_cast< struct sockaddr_in * >(info->ai_addr);

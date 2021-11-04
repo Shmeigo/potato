@@ -40,10 +40,29 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 PlayMode::PlayMode(Client &client_) : client(client_),scene(*stage_scene) {
 
 	// get the transforms of all players' models 
-	for (auto &transform : scene.transforms) {
-		for(uint8_t i =0; i < PLAYER_NUM; i++){
+	// for (auto &transform : scene.transforms) {
+	// 	for(uint8_t i =0; i < PLAYER_NUM; i++){
+	// 		if (transform.name == "Player" + std::to_string(i+1)) {
+	// 			players_transform[i] = &transform;
+	// 		}
+	// 		if (transform.name == "Player" + std::to_string(i+1) + "Portal1") {
+	// 			portal1_transform[i] = &transform;
+	// 		}
+	// 		if (transform.name == "Player" + std::to_string(i+1) + "Portal2") {
+	// 			portal2_transform[i] = &transform;
+	// 		}
+	// 	}
+	// }
+	for(uint8_t i =0; i < PLAYER_NUM; i++){
+		for (auto &transform : scene.transforms) {
 			if (transform.name == "Player" + std::to_string(i+1)) {
 				players_transform[i] = &transform;
+			}
+			if (transform.name == "Player" + std::to_string(i+1) + "Portal1") {
+				portal1_transform[i] = &transform;
+			}
+			if (transform.name == "Player" + std::to_string(i+1) + "Portal2") {
+				portal2_transform[i] = &transform;
 			}
 		}
 	}
@@ -51,14 +70,27 @@ PlayMode::PlayMode(Client &client_) : client(client_),scene(*stage_scene) {
 	for (size_t i =0; i < players_transform.size(); i++){
 		if (players_transform[i] == nullptr){
 			throw std::runtime_error("!!! Does not have the model of player " + std::to_string(i) );
-		}
-		else
+		} else if (portal1_transform[i] == nullptr){
+			throw std::runtime_error("!!! Does not have the model of portal1 " + std::to_string(i) );
+		} else if (portal2_transform[i] == nullptr){
+			throw std::runtime_error("!!! Does not have the model of portal2  " + std::to_string(i) );
+		} else {
 			players_transform[i]->draw = false;
+			portal1_transform[i]->draw = false;
+			portal2_transform[i]->draw = false;
+		}
 	}
 
 	//create a player transform:
 	scene.transforms.emplace_back();
 	my_transform = &scene.transforms.back();
+
+	//create initial transforms for the portals:
+	scene.transforms.emplace_back();
+	p1_transform = &scene.transforms.back();
+
+	scene.transforms.emplace_back();
+	p2_transform = &scene.transforms.back();
 
 	//create a player camera attached to a child of the player transform:
 	scene.transforms.emplace_back();
@@ -85,6 +117,8 @@ PlayMode::~PlayMode() {
 bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
 
 	// wasd
+	// r to place portals
+	// qe to teleport to portals 1 and 2, respectively
 	if (evt.type == SDL_KEYDOWN) {
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -104,6 +138,15 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = true;
 			return true;
+		} else if (evt.key.keysym.sym == SDLK_r) {
+			place.pressed = true;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_q) {
+			tp1.pressed = true;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_e) {
+			tp2.pressed = true;
+			return true;
 		}
 	} else if (evt.type == SDL_KEYUP) {
 		if (evt.key.keysym.sym == SDLK_a) {
@@ -117,6 +160,16 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = false;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_r) {
+			place.pressed = false;
+			can_place = true;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_q) {
+			tp1.pressed = false;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_e) {
+			tp2.pressed = false;
 			return true;
 		}
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
@@ -158,6 +211,28 @@ void PlayMode::update(float elapsed) {
 		if (!left.pressed && right.pressed) force.x = 1.0f;
 		if (down.pressed && !up.pressed) force.y =-1.0f;
 		if (!down.pressed && up.pressed) force.y = 1.0f;
+		if (place.pressed && can_place) {
+			if (place_p1) {
+				p1_transform->position = my_transform->position;
+				p1_transform->rotation = my_transform->rotation;
+				portal1_transform[my_id-1]->draw = true;
+				p1_transform->draw = true;
+			} else {
+				p2_transform->position = my_transform->position;
+				p2_transform->rotation = my_transform->rotation;
+				portal2_transform[my_id-1]->draw = true;
+				p2_transform->draw = true;
+			}
+			can_place = false;
+			place_p1 = !place_p1;
+		} else if (tp1.pressed) {
+			my_transform->position = p1_transform->position;
+			my_transform->rotation = p1_transform->rotation;
+		} else if (tp2.pressed) {
+			my_transform->position = p2_transform->position;
+			my_transform->rotation = p2_transform->rotation;
+		}
+
 		// update velocity
 		glm::vec2 newVelocity = glm::vec3(0);
 		// apllying force (has input)
@@ -187,11 +262,15 @@ void PlayMode::update(float elapsed) {
 		if(my_id!=0){
 			players_transform[my_id-1]->position = my_transform->position;
 			players_transform[my_id-1]->rotation = my_transform->rotation;
+			portal1_transform[my_id-1]->position = p1_transform->position;
+			portal1_transform[my_id-1]->rotation = p1_transform->rotation;
+			portal2_transform[my_id-1]->position = p2_transform->position;
+			portal2_transform[my_id-1]->rotation = p2_transform->rotation;
 		}
 	}
 
 	// sending my info to server:
-	if (left.pressed || right.pressed || down.pressed || up.pressed || mouse_x!=0 ) {
+	if (left.pressed || right.pressed || down.pressed || up.pressed || mouse_x!=0 || place.pressed || tp1.pressed || tp2.pressed) {
 		// convert info to msg
 		Client_Player myself(my_transform->position, my_transform->rotation);
 		std::vector<unsigned char> client_message;
@@ -263,15 +342,29 @@ void PlayMode::update(float elapsed) {
 					// set my init position and rotation accroding to my id
 					my_transform->position = playerInitPos + playerInitPosDistance * (float)(id-1);
 					my_transform->rotation = playerInitRot;
+					p1_transform->position = playerInitPos + playerInitPosDistance * (float)(id-1);
+					p1_transform->rotation = playerInitRot;
+					p2_transform->position = playerInitPos + playerInitPosDistance * (float)(id-1);
+					p2_transform->rotation = playerInitRot;
 					// enable my own model's drawing (delete if want to disable)
-					players_transform[id-1]->draw = true;
+					// players_transform[id-1]->draw = true;
+					// portal1_transform[id-1]->draw = true;
+					// portal2_transform[id-1]->draw = true;
 				}
 			}
 			// other players' info, update their models' transform
 			else{
 				players_transform[id-1]->draw = true;
+				// portal1_transform[id-1]->draw = true;
+				// portal2_transform[id-1]->draw = true;
+
 				players_transform[id-1]->position = client_player.position;
+				portal1_transform[id-1]->position = client_player.position;
+				portal2_transform[id-1]->position = client_player.position;
+
 				players_transform[id-1]->rotation = client_player.rotation;
+				portal1_transform[id-1]->rotation = client_player.rotation;
+				portal2_transform[id-1]->rotation = client_player.rotation;
 			}
 
 			// move to next player's info

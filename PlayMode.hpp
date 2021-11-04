@@ -23,15 +23,19 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up;
+	} left, right, down, up, place, tp1, tp2;
 
 	// --------- local game logics -------- //
 	// my own info
 	uint8_t my_id = 0; // 0 for unkonw (assigned by server)
     Scene::Transform *my_transform = nullptr;
+    Scene::Transform *p1_transform = nullptr;
+    Scene::Transform *p2_transform = nullptr;
     Scene::Camera *my_camera = nullptr;
     float mouse_x;
     float mouse_y;
+	bool place_p1 = true;
+	bool can_place = true;
 	// scenes
 	Scene scene;
 	// gameplay related
@@ -50,6 +54,9 @@ struct PlayMode : Mode {
 	// ------- multiplayer game logics ---------- //
 	// transforms of all players' model, including my model
 	std::array <Scene::Transform *, PLAYER_NUM> players_transform{};
+	// transforms of all players' portal models, including my models
+	std::array <Scene::Transform *, PLAYER_NUM> portal1_transform{};
+	std::array <Scene::Transform *, PLAYER_NUM> portal2_transform{};
 	//last message from server:
 	std::vector<unsigned char> server_message;
 	//connection to server:
