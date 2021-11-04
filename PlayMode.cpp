@@ -37,7 +37,7 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 	});
 });
 
-PlayMode::PlayMode(Client &client_) : client(client_),scene(*stage_scene) {
+PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 
 	// get the transforms of all players' models 
 	for(uint8_t i =0; i < PLAYER_NUM; i++){

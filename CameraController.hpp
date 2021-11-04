@@ -29,6 +29,8 @@ public:
 private:
 	Scene::Camera* camera = nullptr;
 	Scene::Transform* target = nullptr;
+
+	[[maybe_unused]]
 	glm::vec3 offset = glm::vec3(0.0f);
 
 	glm::vec3 camera_position;
@@ -40,9 +42,6 @@ private:
 	float vertical_angle_max;
 	float vertical_angle_min;
 
-	float horizontal_angle;
-	float vertical_angle;
-
 	float bottom_radius;
 	float middle_radius;
 	float top_radius;
@@ -50,5 +49,7 @@ private:
 	float middle_height;
 	float top_height;
 	
+	float horizontal_angle;
+	float vertical_angle;
 	
 };
