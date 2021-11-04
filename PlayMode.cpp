@@ -167,12 +167,18 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
-	for (auto& skeletal : scene.skeletals) {
-		skeletal.update_nodes(50);
-		for (auto& mesh : skeletal.meshes) {
-			mesh.update_bone_transforms();
+	frametime += elapsed;
+	if (frametime >= 0.03f) {
+		frametime = 0;
+		current_frame = (current_frame + 1) % 180;
+		for (auto& skeletal : scene.skeletals) {
+			skeletal.update_nodes(current_frame);
+			for (auto& mesh : skeletal.meshes) {
+				mesh.update_bone_transforms();
+			}
 		}
 	}
+	
 	// update my own transform locally
 	{
 		//combine inputs into a force:
@@ -302,7 +308,7 @@ void PlayMode::update(float elapsed) {
 					p2_transform->position = portalInitPos;
 					// p2_transform->rotation = playerInitRot;
 					// enable my own model's drawing (delete if want to disable)
-					players_transform[id-1]->draw = true;
+					//players_transform[id-1]->draw = true;
 				}
 			}
 			// other players' info, update their models' transform

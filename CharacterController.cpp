@@ -18,7 +18,7 @@ void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
 		glm::vec3 forward = -frame[2];
 		forward = glm::normalize(glm::vec3(forward.x, forward.y, 0.0f));
 		glm::vec3 direction = move.x * right + move.y * forward;
-
+		direction.z = 0;
 		//update velocity
 		velocity += direction * acceleration * elapsed;
 		if (glm::length(velocity) > walking_speed_max) {

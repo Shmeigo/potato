@@ -76,4 +76,7 @@ struct PlayMode : Mode {
 	//connection to server:
 	Client &client;
 
+	unsigned int current_frame = 0;
+	float frametime = 0.f;
+
 };

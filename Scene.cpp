@@ -10,6 +10,25 @@
 
 //-------------------------
 
+
+std::ostream& operator<<(std::ostream& out, const BoneWeight& bw) {
+	out << "[" << bw.weights[0] << ", " << bw.weights[1] << ", " << bw.weights[2] << ", " << bw.weights[3] << "]";
+	return out;
+}
+
+//assert(sizeof(BoneWeight) == 16); // same as a vec4
+
+
+std::ostream& operator<<(std::ostream& out, const BoneID& bid) {
+	out << "[" << bid.ids[0] << ", " << bid.ids[1] << ", " << bid.ids[2] << ", " << bid.ids[3] << "]";
+	return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const glm::vec4& v) {
+	out << "{" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << "}";
+	return out;
+}
+
 glm::mat4x3 Scene::Transform::make_local_to_parent() const {
 	//compute:
 	//   translate   *   rotate    *   scale
@@ -432,7 +451,7 @@ const char* vertex_shader = "#version 330 core\n"
 "		if (index != -1) transformed = transformed + BoneWeights[i] * BoneTransforms[index] * Position;\n"
 "	}\n"
 	"Normal = pass_Normal;\n"
-"	gl_Position = MVP * Position;\n"
+"	gl_Position = MVP * transformed;\n"
 "}\n";
 
 const char* fragment_shader = "#version 330 core\n"
@@ -501,6 +520,8 @@ const char* fragment_shader = "#version 330 core\n"
 	std::cerr << "Num nodes: " << nodes.size() << std::endl;
 	std::cerr << "Num anims: " << animations.size() << std::endl;
 
+	nodes[0].transform = glm::rotate(nodes[0].transform, 90 * 3.14159f/180.f, glm::vec3(1, 0, 0));
+	nodes[0].transform = glm::rotate(nodes[0].transform, 180 * 3.14159f/180.f, glm::vec3(0, 0, 1));
 
 	for (int i = 0; i < num_meshes[0]; i++) {
 		meshes.emplace_back(i, &nodes);
@@ -523,7 +544,10 @@ Scene::Skeletal::AnimatedMesh::AnimatedMesh(int i, const std::vector<Node>* n) :
 	read_chunk(din, "idss", &bone_ids);
 	read_chunk(bin, "bone", &bones);
 
-	bone_transforms.reserve(bones.size());
+	bone_transforms.clear();
+	for (int i = 0; i < bones.size(); i++) {
+		bone_transforms.emplace_back();
+	}
 
 	vin.close();
 	nin.close();
@@ -569,11 +593,20 @@ Scene::Skeletal::AnimatedMesh::AnimatedMesh(int i, const std::vector<Node>* n) :
 	glEnableVertexAttribArray(3);
 
 	glBindVertexArray(0);
+
+	for (const auto& bone : bones) {
+		std::cerr << bone.node_id << ", ";
+	}
+	std::cerr << std::endl;
 }
 
 void Scene::Skeletal::update_nodes(int frame) {
-	for (int i = 1; i < nodes.size(); i++) {
-		if (nodes[i].has_animation) {
+	for (int i = 0; i < nodes.size(); i++) {
+		assert(i > nodes[i].parent_id);
+		if (i == 0) {
+			nodes[i].overall_transform = nodes[i].transform;
+		}
+		else if (nodes[i].has_animation) {
 			const auto& anim_transform = animations[nodes[i].animation_id].keys[frame];
 			nodes[i].overall_transform = nodes[nodes[i].parent_id].overall_transform * anim_transform;
 		}
@@ -586,6 +619,6 @@ void Scene::Skeletal::update_nodes(int frame) {
 void Scene::Skeletal::AnimatedMesh::update_bone_transforms() {
 	for (int i = 0; i < bones.size(); i++) {
 		auto& ns = *nodes;
-		bone_transforms[i] = ns[0].transform * ns[bones[i].node_id].overall_transform * bones[i].inverse_binding;
+		bone_transforms[i] = ns[bones[i].node_id].overall_transform * bones[i].inverse_binding;
 	}
 }
