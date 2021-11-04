@@ -4,8 +4,10 @@
 #include "Connection.hpp"
 #include "TextRenderer.hpp"
 #include "NetworkPlayer.hpp"
-#include <glm/glm.hpp>
+#include "CameraController.hpp"
+#include "CharacterController.hpp"
 
+#include <glm/glm.hpp>
 #include <vector>
 #include <array>
 #include <deque>
@@ -38,15 +40,24 @@ struct PlayMode : Mode {
 	bool can_place = true;
 	// scenes
 	Scene scene;
+
+	// Camera Controller
+	CameraController *cameraController;
+
+	// Player Controller
+	CharacterController* characterController;
+
 	// gameplay related
-	const glm::vec3 cameraOffset = glm::vec3(0.0f, -0.7f, .7f);;
 	const glm::vec3 playerInitPos = glm::vec3(-7,-1,0);
 	const glm::vec3 playerInitPosDistance = glm::vec3(0,-1.5f,0);
 	const glm::quat playerInitRot = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glm::vec2 curVelocity = glm::vec3(0);
-	float acceleration = 1.5f;
-	float friction = 1.0f;
+
+	//glm::vec2 curVelocity = glm::vec3(0);
+	//float acceleration = 1.5f;
+	//float friction = 1.0f;
+
 	bool ping;
+
 	// font
 	std::shared_ptr<TextRenderer> hintFont;
 	std::shared_ptr<TextRenderer> messageFont;

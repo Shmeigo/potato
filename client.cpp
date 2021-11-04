@@ -162,6 +162,9 @@ int main(int argc, char **argv) {
 					}
 					save_png(filename, glm::uvec2(w,h), data.data(), LowerLeftOrigin);
 				}
+				if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+					SDL_WarpMouseInWindow(window, window_size.x / 2, window_size.y / 2);
+				}
 			}
 			if (!Mode::current) break;
 		}

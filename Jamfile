@@ -147,6 +147,8 @@ CLIENT_NAMES =
 	TextRenderer
 	TextRenderProgram
 	NetworkPlayer
+	CameraController
+	CharacterController
 	;
 
 SERVER_NAMES =

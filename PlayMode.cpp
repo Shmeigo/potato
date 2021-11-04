@@ -98,13 +98,12 @@ PlayMode::PlayMode(Client &client_) : client(client_),scene(*stage_scene) {
 	my_camera = &scene.cameras.back();
 	my_camera->fovy = glm::radians(60.0f);
 	my_camera->near = 0.01f;
-	my_camera->transform->parent = my_transform;
 
-	// cam offset
-	my_camera->transform->position = cameraOffset;
+	//create camera controller to control the camera
+	cameraController = new CameraController(my_camera, my_transform, glm::vec3(0.0f), 1.5f, 2.5f, 1.5f, 0.0f, 0.5f, 1.2f);
 
-	//rotate camera facing direction (-z) to player facing direction (+y):
-	my_camera->transform->rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	//create player controller to control the player
+	characterController = new CharacterController(my_transform, my_camera);
 
 	// font
 	hintFont = std::make_shared<TextRenderer>(data_path("OpenSans-B9K8.ttf"));
@@ -185,16 +184,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			mouse_x = evt.motion.xrel / float(window_size.y),
 			mouse_y = -evt.motion.yrel / float(window_size.y);
 
-			glm::vec3 up = glm::vec3(0,0,1);
-			my_transform->rotation = glm::angleAxis(-mouse_x * my_camera->fovy, up) * my_transform->rotation;
-
-			float pitch = glm::pitch(my_camera->transform->rotation);
-			pitch += mouse_y * my_camera->fovy;
-			//camera looks down -z (basically at the player's feet) when pitch is at zero.
-			pitch = std::min(pitch, 0.95f * 3.1415926f);
-			pitch = std::max(pitch, 0.05f * 3.1415926f);
-			my_camera->transform->rotation = glm::angleAxis(pitch, glm::vec3(1.0f, 0.0f, 0.0f));
-
+			cameraController->AdjustCamera(glm::vec2(mouse_x, mouse_y));
 			return true;
 		}
 	}
@@ -233,30 +223,7 @@ void PlayMode::update(float elapsed) {
 			my_transform->rotation = p2_transform->rotation;
 		}
 
-		// update velocity
-		glm::vec2 newVelocity = glm::vec3(0);
-		// apllying force (has input)
-		if (force != glm::vec2(0.0f)) {
-			force = glm::normalize(force);
-			// new velicoty
-			newVelocity = curVelocity + force * acceleration * elapsed;
-		}
-		// no force, use firction
-		else{
-			if (curVelocity != glm::vec2(0)){
-				newVelocity = curVelocity - glm::normalize(curVelocity) * friction * elapsed;
-				// make sure frictiuon does not change the direction
-				if ((curVelocity.x>0 && newVelocity.x <0) || (curVelocity.x<0 && newVelocity.x >0))
-					newVelocity.x = 0;
-				if ((curVelocity.y>0 && newVelocity.y <0) || (curVelocity.y<0 && newVelocity.y >0)) 
-					newVelocity.y = 0;
-			}
-		}
-		// movement
-		glm::vec2 move = (newVelocity + curVelocity) / 2.0f * elapsed;
-		curVelocity = newVelocity;
-		// update position
-		my_transform->position += my_transform->make_local_to_world() * glm::vec4(move.x, move.y, 0.0f, 0.0f);
+		characterController->UpdateCharacter(force, elapsed);
 
 		// update my model's transform, if i know which model is mine
 		if(my_id!=0){
@@ -268,6 +235,8 @@ void PlayMode::update(float elapsed) {
 			portal2_transform[my_id-1]->rotation = p2_transform->rotation;
 		}
 	}
+
+	cameraController->UpdateCamera();
 
 	// sending my info to server:
 	if (left.pressed || right.pressed || down.pressed || up.pressed || mouse_x!=0 || place.pressed || tp1.pressed || tp2.pressed) {
