@@ -38,7 +38,7 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 });
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
-
+	
 	// get the transforms of all players' models 
 	for(uint8_t i =0; i < PLAYER_NUM; i++){
 		for (auto &transform : scene.transforms) {
@@ -69,6 +69,8 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 	//create a player transform:
 	scene.transforms.emplace_back();
 	my_transform = &scene.transforms.back();
+
+	scene.skeletals.emplace_back(my_transform);
 
 	//create initial transforms for the portals:
 	scene.transforms.emplace_back();
@@ -165,6 +167,12 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
+	for (auto& skeletal : scene.skeletals) {
+		skeletal.update_nodes(50);
+		for (auto& mesh : skeletal.meshes) {
+			mesh.update_bone_transforms();
+		}
+	}
 	// update my own transform locally
 	{
 		//combine inputs into a force:

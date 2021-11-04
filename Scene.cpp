@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <fstream>
+#include "data_path.hpp"
 
 //-------------------------
 
@@ -163,6 +164,28 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 
 	glUseProgram(0);
 	glBindVertexArray(0);
+
+	// iterate through all skeletals, sending each one to OpenGL
+	for (const auto& skeletal : skeletals) {
+		glUseProgram(skeletal.program);
+		//GL_ERRORS();
+		glm::mat4x3 object_to_world = skeletal.transform->make_local_to_world();
+		glm::mat4 object_to_clip = world_to_clip * glm::mat4(object_to_world);
+
+		unsigned int mvp_loc = glGetUniformLocation(skeletal.program, "MVP");
+		glUniformMatrix4fv(mvp_loc, 1, GL_FALSE, (const float*)&object_to_clip);
+
+		//GL_ERRORS();
+		for (const auto& mesh : skeletal.meshes) {
+			unsigned int t_loc = glGetUniformLocation(skeletal.program, "BoneTransforms");
+			glUniformMatrix4fv(t_loc, mesh.bone_transforms.size(), GL_FALSE, (const float*)mesh.bone_transforms.data());
+
+			glBindVertexArray(mesh.vao);
+			//GL_ERRORS();
+			glDrawElements(GL_TRIANGLES, mesh.elements, GL_UNSIGNED_INT, 0);
+			//GL_ERRORS();
+		}
+	}
 
 	GL_ERRORS();
 }
@@ -375,5 +398,194 @@ void Scene::set(Scene const &other, std::unordered_map< Transform const *, Trans
 	lights = other.lights;
 	for (auto &l : lights) {
 		l.transform = transform_to_transform.at(l.transform);
+	}
+}
+
+Scene::Skeletal::Skeletal(Scene::Transform* t) : transform(t) {
+	[[maybe_unused]]
+	const char* vertex_shader_pos = "#version 330 core\n"
+"layout (location = 0) in vec4 Position;\n"
+"uniform mat4 MVP;\n"
+"void main() {\n"
+"	gl_Position = MVP * Position;\n"
+"}\n";
+
+	[[maybe_unused]]
+	const char* fragment_shader_pos = "#version 330 core\n"
+"out vec4 FragColor;\n"
+"void main() {\n"
+"	FragColor = vec4(1, 1, 1, 1);\n"
+"}\n";
+
+const char* vertex_shader = "#version 330 core\n"
+"layout (location = 0) in vec4 Position;\n"
+"layout (location = 1) in ivec4 BoneIDs;\n"
+"layout (location = 2) in vec4 BoneWeights;\n"
+"layout (location = 3) in vec3 pass_Normal;\n"
+"out vec3 Normal;\n"
+"uniform mat4[64] BoneTransforms;\n"
+"uniform mat4 MVP;\n"
+"void main() {\n"
+"	vec4 transformed = vec4(0, 0, 0, 1);\n"
+"	for (int i = 0; i < 4; i++) {\n"
+"		int index = BoneIDs[i];\n"
+"		if (index != -1) transformed = transformed + BoneWeights[i] * BoneTransforms[index] * Position;\n"
+"	}\n"
+	"Normal = pass_Normal;\n"
+"	gl_Position = MVP * Position;\n"
+"}\n";
+
+const char* fragment_shader = "#version 330 core\n"
+"out vec4 FragColor;\n"
+"in vec3 Normal;\n"
+"void main() {\n"
+"	float c = abs(dot(Normal, normalize(vec3(1, 1, 0))));\n"
+"	FragColor = vec4(c, c, c, 1);\n"
+"}\n";
+
+	int status;
+
+	int vshader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vshader, 1, &vertex_shader, NULL);
+	glCompileShader(vshader);
+	glGetShaderiv(vshader, GL_COMPILE_STATUS, &status);
+	if (status != GL_TRUE) {
+		char log[1024] = {0};
+		int l;
+		glGetShaderInfoLog(vshader, 1024, &l, log);
+		std::cerr << log << std::endl;
+	}
+
+	int fshader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fshader, 1, &fragment_shader, NULL);
+	glCompileShader(fshader);
+
+	glGetShaderiv(fshader, GL_COMPILE_STATUS, &status);
+	if (status != GL_TRUE) {
+		char log[1024] = {0};
+		int l;
+		glGetShaderInfoLog(fshader, 1024, &l, log);
+		std::cerr << log << std::endl;
+	}
+
+	program = glCreateProgram();
+	glAttachShader(program, vshader);
+	glAttachShader(program, fshader);
+	glLinkProgram(program);
+
+	glGetProgramiv(program, GL_LINK_STATUS, &status);
+	if (status != GL_TRUE) {
+		char log[1024] = {0};
+		int l;
+		glGetProgramInfoLog(program, 1024, &l, log);
+		std::cerr << log << std::endl;
+	}
+
+	GL_ERRORS();
+
+	// don't transfer stuff rn
+	std::vector<int> num_meshes;
+	std::ifstream num_in(data_path("skeletal/num.dat"), std::ios::binary);
+	read_chunk(num_in, "nums", &num_meshes);
+	std::cerr << "Num meshes: " << num_meshes[0] << std::endl;
+	num_in.close();
+	
+	std::ifstream node_in(data_path("skeletal/nodes.dat"), std::ios::binary);
+	read_chunk(node_in, "node", &nodes);
+	node_in.close();
+
+	std::ifstream animation_in(data_path("skeletal/animations.dat"), std::ios::binary);
+	read_chunk(animation_in, "anim", &animations);
+	animation_in.close();
+
+	std::cerr << "Num nodes: " << nodes.size() << std::endl;
+	std::cerr << "Num anims: " << animations.size() << std::endl;
+
+
+	for (int i = 0; i < num_meshes[0]; i++) {
+		meshes.emplace_back(i, &nodes);
+	}
+}
+
+Scene::Skeletal::AnimatedMesh::AnimatedMesh(int i, const std::vector<Node>* n) : nodes(n) {
+	std::string prefix = std::string("skeletal/mesh") + std::to_string(i);
+	std::ifstream vin(data_path(prefix+std::string("vertices.dat")), std::ios::binary);
+	std::ifstream nin(data_path(prefix+std::string("normals.dat")), std::ios::binary);
+	std::ifstream iin(data_path(prefix+std::string("indices.dat")), std::ios::binary);
+	std::ifstream win(data_path(prefix+std::string("weights.dat")), std::ios::binary);
+	std::ifstream din(data_path(prefix+std::string("ids.dat")), std::ios::binary);
+	std::ifstream bin(data_path(prefix+std::string("bones.dat")), std::ios::binary);
+	
+	read_chunk(vin, "vert", &vertices);
+	read_chunk(nin, "norm", &normals);
+	read_chunk(iin, "indi", &indices);
+	read_chunk(win, "weig", &bone_weights);
+	read_chunk(din, "idss", &bone_ids);
+	read_chunk(bin, "bone", &bones);
+
+	bone_transforms.reserve(bones.size());
+
+	vin.close();
+	nin.close();
+	iin.close();
+	win.close();
+	din.close();
+	bin.close();
+
+	std::cerr << vertices.size() << ", " << normals.size() << ", " << indices.size() << ", " << bone_weights.size() << ", " << bone_ids.size() << ", " << bones.size() << std::endl;
+
+	glGenVertexArrays(1, &vao);
+	glGenBuffers(1, &vbo);
+	glGenBuffers(1, &norm_vbo);
+	glGenBuffers(1, &weight_vbo);
+	glGenBuffers(1, &id_vbo);
+	glGenBuffers(1, &ebo);
+
+	elements = indices.size();
+
+	glBindVertexArray(vao);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, id_vbo);
+	glBufferData(GL_ARRAY_BUFFER, bone_ids.size() * sizeof(BoneID), bone_ids.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 4, GL_INT, GL_FALSE, 4 * sizeof(int), (void*)0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, weight_vbo);
+	glBufferData(GL_ARRAY_BUFFER, bone_weights.size() * sizeof(BoneWeight), bone_weights.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, norm_vbo);
+	glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(float), normals.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, elements * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(3);
+
+	glBindVertexArray(0);
+}
+
+void Scene::Skeletal::update_nodes(int frame) {
+	for (int i = 1; i < nodes.size(); i++) {
+		if (nodes[i].has_animation) {
+			const auto& anim_transform = animations[nodes[i].animation_id].keys[frame];
+			nodes[i].overall_transform = nodes[nodes[i].parent_id].overall_transform * anim_transform;
+		}
+		else {
+			nodes[i].overall_transform = nodes[nodes[i].parent_id].overall_transform * nodes[i].transform;
+		}
+	}
+}
+
+void Scene::Skeletal::AnimatedMesh::update_bone_transforms() {
+	for (int i = 0; i < bones.size(); i++) {
+		auto& ns = *nodes;
+		bone_transforms[i] = ns[0].transform * ns[bones[i].node_id].overall_transform * bones[i].inverse_binding;
 	}
 }
