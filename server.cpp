@@ -106,7 +106,9 @@ int main(int argc, char **argv) {
 					Server_Player &player = f->second;
 
 					// ----------- handle messages from client ---------- //
-					player.read_from_message(c);
+					uint8_t hit_id;
+					player.read_from_message(c, hit_id);
+					// todo: do smthing here with the hit id
 				}
 			}, remain);
 		}

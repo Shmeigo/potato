@@ -39,7 +39,7 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 
-	// get the transforms of all players' models 
+	// get the transforms of all players' models and portals
 	for(uint8_t i =0; i < PLAYER_NUM; i++){
 		for (auto &transform : scene.transforms) {
 			if (transform.name == "Player" + std::to_string(i+1)) {
@@ -63,6 +63,8 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 			throw std::runtime_error("!!! Does not have the model of portal2  " + std::to_string(i) );
 		} else {
 			players_transform[i]->draw = false;
+			portal1_transform[i]->draw = false;
+			portal2_transform[i]->draw = false;
 		}
 	}
 
@@ -219,7 +221,10 @@ void PlayMode::update(float elapsed) {
 	// sending my info to server:
 	if (left.pressed || right.pressed || down.pressed || up.pressed || mouse_x!=0 || place.pressed || !can_teleport) {
 		// convert info to msg
-		Client_Player myself(my_transform->position, my_transform->rotation);
+		Client_Player myself(
+			my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
+			p2_transform->position, p2_transform->rotation, hit_id
+		);
 		std::vector<unsigned char> client_message;
 		myself.convert_to_message(client_message);
 		// send msg
@@ -278,12 +283,15 @@ void PlayMode::update(float elapsed) {
 			// ---------- read content ----------- //
 			Client_Player client_player;
 			uint8_t id;
-			client_player.read_from_message(content, id);
+			bool gotHit;
+			client_player.read_from_message(content, id, gotHit);
+			
+			// Todo: use gotHit below
 
 			// --------- process info ---------- //
 			// is this my info ? (server will put my own info at first)
 			if(i == i_offset){
-				// if unkonwn before
+				// if unkonwn before (following code only runs once)
 				if(my_id == 0){
 					my_id = id;
 					// set my init position and rotation accroding to my id
@@ -295,19 +303,23 @@ void PlayMode::update(float elapsed) {
 					// p2_transform->rotation = playerInitRot;
 					// enable my own model's drawing (delete if want to disable)
 					players_transform[id-1]->draw = true;
+					portal1_transform[id-1]->draw = true;
+					portal2_transform[id-1]->draw = true;
 				}
 			}
-			// other players' info, update their models' transform
+			// other players' info, update their models' transform & portals
 			else{
 				players_transform[id-1]->draw = true;
-
+				portal1_transform[id-1]->draw = true;
+				portal2_transform[id-1]->draw = true;
+				// positions
 				players_transform[id-1]->position = client_player.position;
-				// portal1_transform[id-1]->position = client_player.position;
-				// portal2_transform[id-1]->position = client_player.position;
-
+				portal1_transform[id-1]->position = client_player.portal1_position;
+				portal2_transform[id-1]->position = client_player.portal2_position;
+				// rotations
 				players_transform[id-1]->rotation = client_player.rotation;
-				// portal1_transform[id-1]->rotation = client_player.rotation;
-				// portal2_transform[id-1]->rotation = client_player.rotation;
+				portal1_transform[id-1]->rotation = client_player.portal1_rotation;
+				portal2_transform[id-1]->rotation = client_player.portal2_rotation;
 			}
 
 			// move to next player's info

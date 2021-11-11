@@ -50,10 +50,8 @@ struct PlayMode : Mode {
 	CharacterController* characterController;
 
 	// gameplay related
-	const glm::vec3 playerInitPos = glm::vec3(-7,-1,0);
-	const glm::vec3 playerInitPosDistance = glm::vec3(0,-1.5f,0);
-	const glm::quat playerInitRot = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	const glm::vec3 portalInitPos = glm::vec3(-7,-1,-3);
+	uint8_t hit_id = 0; // who I hit (0 means hit no one)
 
 	//glm::vec2 curVelocity = glm::vec3(0);
 	//float acceleration = 1.5f;
