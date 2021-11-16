@@ -21,6 +21,7 @@ public:
 	CollisionSystem() {}
 	void AddElement(Collidable* element) { elements.push_back(element); }
 	void FixOverLap(int CollidableID) { elements[CollidableID - 1]->FixOverLap(); }
+	int CheckOverLap(int CollidableID, float attackDegree, float attackRadius);
 
 	std::vector<Collidable*> elements;
 	  

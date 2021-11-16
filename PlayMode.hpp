@@ -26,7 +26,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, place;
+	} left, right, down, up, place, attack;
 
 	// --------- local game logics -------- //
 	// my own info
@@ -41,6 +41,7 @@ struct PlayMode : Mode {
 	bool can_place = true;
 	bool can_teleport = true;
 	bool both_placed = false;
+
 	// scenes
 	Scene scene;
 
@@ -54,8 +55,14 @@ struct PlayMode : Mode {
 	CollisionSystem* collisionSystem;
 
 	// gameplay related
+	const float attackDegree = 90.0f;
+	const float attackRadius = 2.0f;
 	const glm::vec3 portalInitPos = glm::vec3(-7,-1,-3);
 	uint8_t hit_id = 0; // who I hit (0 means hit no one)
+
+	// timer
+	const float hitCD = 1.0f;
+	float hitTimer = 0.0f;
 
 	bool ping;
 

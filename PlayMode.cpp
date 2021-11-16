@@ -108,6 +108,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 	// wasd
 	// e to place portals
+	// left mouse button to attack
 	if (evt.type == SDL_KEYDOWN) {
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -152,6 +153,15 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
+			
+		}
+		if (evt.button.button == SDL_BUTTON_LEFT) {
+			attack.pressed = true;
+			return true;
+		}
+	} else if (evt.type == SDL_MOUSEBUTTONUP) {
+		if (evt.button.button == SDL_BUTTON_LEFT) {
+			attack.pressed = false;
 			return true;
 		}
 	}
@@ -172,18 +182,24 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::update(float elapsed) {
 	// update my own transform locally
-	{
+	if (my_id != 0) {
 		//combine inputs into a force:
 		glm::vec2 force = glm::vec2(0.0f);
 		if (left.pressed && !right.pressed) force.x =-1.0f;
 		if (!left.pressed && right.pressed) force.x = 1.0f;
 		if (down.pressed && !up.pressed) force.y =-1.0f;
 		if (!down.pressed && up.pressed) force.y = 1.0f;
+
+		// update player movement
+		characterController->UpdateCharacter(force, elapsed);
+
+		// place portals
 		if (place.pressed && can_place) {
 			if (place_p1) {
 				p1_transform->position = my_transform->position;
 				p1_transform->rotation = my_transform->rotation;
-			} else {
+			}
+			else {
 				p2_transform->position = my_transform->position;
 				p2_transform->rotation = my_transform->rotation;
 				both_placed = true;
@@ -192,8 +208,6 @@ void PlayMode::update(float elapsed) {
 			can_place = false;
 			place_p1 = !place_p1;
 		}
-
-		characterController->UpdateCharacter(force, elapsed);
 
 		// check if I stepped into a portal
 		if (glm::distance(my_transform->position, p1_transform->position) < 0.5f && 
@@ -209,24 +223,34 @@ void PlayMode::update(float elapsed) {
 			can_teleport = true;
 		}
 
-		// update my model's transform, if i know which model is mine
-		if(my_id != 0){
-			players_transform[my_id-1]->position = my_transform->position;
-			players_transform[my_id-1]->rotation = my_transform->rotation;
-			portal1_transform[my_id-1]->position = p1_transform->position;
-			portal1_transform[my_id-1]->rotation = p1_transform->rotation;
-			portal2_transform[my_id-1]->position = p2_transform->position;
-			portal2_transform[my_id-1]->rotation = p2_transform->rotation;
+		//attack command
+		hit_id = 0;
+		if (hitTimer <= 0.0f) {
+			if (attack.pressed) {
+				hitTimer = hitCD;
+				hit_id = collisionSystem->CheckOverLap(my_id, attackDegree, attackRadius);
+				//std::cout << "attack" << std::endl;
+			}
 		}
-	}
-
-	//checking collision with other players
-	if (my_id != 0) {
+		else {
+			hitTimer -= elapsed;
+		}
+		
+		//fix overlap with other players
 		collisionSystem->FixOverLap(my_id);
-	}
 
-	//update camera
-	cameraController->UpdateCamera();
+		//update players and portals position
+		players_transform[my_id-1]->position = my_transform->position;
+		players_transform[my_id-1]->rotation = my_transform->rotation;
+		portal1_transform[my_id-1]->position = p1_transform->position;
+		portal1_transform[my_id-1]->rotation = p1_transform->rotation;
+		portal2_transform[my_id-1]->position = p2_transform->position;
+		portal2_transform[my_id-1]->rotation = p2_transform->rotation;
+		
+
+		//update camera
+		cameraController->UpdateCamera();
+	}
 
 	// sending my info to server:
 	{
@@ -297,6 +321,9 @@ void PlayMode::update(float elapsed) {
 			client_player.read_from_message(content, id, gotHit);
 			
 			// Todo: use gotHit below
+			if (id == my_id && gotHit) {
+				std::cout << "I am attacked" << std::endl;
+			}
 
 			// --------- process info ---------- //
 			// is this my info ? (server will put my own info at first)
