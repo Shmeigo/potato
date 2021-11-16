@@ -28,6 +28,20 @@ struct PlayMode : Mode {
 		uint8_t pressed = 0;
 	} left, right, down, up, place, attack;
 
+	enum class AnimationState {
+		IDLE,
+		RUN,
+		HIT_1,
+		BLOCK
+	} player_animation_state = AnimationState::IDLE;
+	AnimationState last_player_animation_state = AnimationState::RUN;
+
+	std::map<AnimationState, std::pair<unsigned, unsigned>> animation_times;
+	std::map<AnimationState, bool> animation_is_oneshot;
+
+	unsigned int current_frame = 0;
+	float frametime = 0.f;
+
 	// --------- local game logics -------- //
 	// my own info
 	uint8_t my_id = 0; // 0 for unkonw (assigned by server)

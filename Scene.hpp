@@ -22,6 +22,9 @@
 #include <vector>
 #include <unordered_map>
 
+#include "Skeletal.hpp"
+
+
 struct Scene {
 	struct Transform {
 		//Transform names are useful for debugging and looking up locations in a loaded scene:
@@ -118,9 +121,40 @@ struct Scene {
 		float spot_fov = glm::radians(45.0f); //spot cone fov (in radians)
 	};
 
+	struct Skeletal {
+		//a 'Skeletal' attaches skinned geometry to a transform
+		Skeletal(Transform *transform_);
+		Transform * transform;
+
+		unsigned int program;
+		std::vector<Node> nodes;
+		std::vector<Animation> animations;
+
+		struct AnimatedMesh {
+			// all the rendering garbage
+			unsigned int vao, vbo, norm_vbo, weight_vbo, id_vbo, ebo, elements;
+			std::vector<float> vertices;
+			std::vector<float> normals;
+			std::vector<unsigned int> indices;
+			std::vector<BoneWeight> bone_weights;
+			std::vector<BoneID> bone_ids;
+			std::vector<Bone> bones;
+			std::vector<glm::mat4> bone_transforms;
+
+			const std::vector<Node>* nodes;
+			AnimatedMesh(int idx, const std::vector<Node>* n);
+			void update_bone_transforms();
+		};
+
+		std::vector<AnimatedMesh> meshes;
+
+		void update_nodes(int i);
+	};
+
 	//Scenes, of course, may have many of the above objects:
 	std::list< Transform > transforms;
 	std::list< Drawable > drawables;
+	std::list< Skeletal > skeletals;
 	std::list< Camera > cameras;
 	std::list< Light > lights;
 

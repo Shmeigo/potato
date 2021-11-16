@@ -38,10 +38,21 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 });
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
+	animation_times[AnimationState::IDLE] = {0, 29};
+	animation_times[AnimationState::RUN] = {40, 59};
+	animation_times[AnimationState::HIT_1] = {70, 99};
+	animation_times[AnimationState::BLOCK] = {100, 129};
+
+	animation_is_oneshot[AnimationState::IDLE] = false;
+	animation_is_oneshot[AnimationState::RUN] = false;
+	animation_is_oneshot[AnimationState::HIT_1] = true;
+	animation_is_oneshot[AnimationState::BLOCK] = true;
 
 	//create a player transform:
 	scene.transforms.emplace_back();
 	my_transform = &scene.transforms.back();
+
+	scene.skeletals.emplace_back(my_transform);
 
 	//create initial transforms for the portals:
 	scene.transforms.emplace_back();
@@ -96,6 +107,8 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 		}
 	}
 
+	
+
 	// font
 	hintFont = std::make_shared<TextRenderer>(data_path("OpenSans-B9K8.ttf"));
 	messageFont = std::make_shared<TextRenderer>(data_path("SeratUltra-1GE24.ttf"));
@@ -118,32 +131,46 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			//ignore repeats
 		} else if (evt.key.keysym.sym == SDLK_a) {
 			left.pressed = true;
+			player_animation_state = AnimationState::RUN;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_d) {
 			right.pressed = true;
+			player_animation_state = AnimationState::RUN;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_w) {
 			up.pressed = true;
+			player_animation_state = AnimationState::RUN;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = true;
+			player_animation_state = AnimationState::RUN;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_e) {
 			place.pressed = true;
 			return true;
-		}
+		} else if (evt.key.keysym.sym == SDLK_f) {
+			player_animation_state = AnimationState::HIT_1;
+			return true;
+		} else if (evt.key.keysym.sym == SDLK_v) {
+			player_animation_state = AnimationState::BLOCK;
+			return true;
+		} 
 	} else if (evt.type == SDL_KEYUP) {
 		if (evt.key.keysym.sym == SDLK_a) {
 			left.pressed = false;
+			player_animation_state = AnimationState::IDLE;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_d) {
 			right.pressed = false;
+			player_animation_state = AnimationState::IDLE;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_w) {
 			up.pressed = false;
+			player_animation_state = AnimationState::IDLE;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = false;
+			player_animation_state = AnimationState::IDLE;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_e) {
 			place.pressed = false;
@@ -181,6 +208,34 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
+	frametime += elapsed;
+	if (frametime >= 0.03f) {
+		frametime = 0;
+		const auto& times = animation_times[player_animation_state];
+		if (last_player_animation_state != player_animation_state) {
+			current_frame = times.first;
+		}
+		else {
+			current_frame++;
+			if (current_frame > times.second) {
+				if (animation_is_oneshot[player_animation_state]) {
+					player_animation_state = AnimationState::IDLE;
+					current_frame = animation_times[AnimationState::IDLE].first;
+				}
+				else {
+					current_frame = times.first;
+				}
+			}
+		}
+		for (auto& skeletal : scene.skeletals) {
+			skeletal.update_nodes(current_frame);
+			for (auto& mesh : skeletal.meshes) {
+				mesh.update_bone_transforms();
+			}
+		}
+		last_player_animation_state = player_animation_state;
+	}
+
 	// update my own transform locally
 	if (my_id != 0) {
 		//combine inputs into a force:
