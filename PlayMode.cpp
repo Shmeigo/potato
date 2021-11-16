@@ -38,8 +38,6 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 });
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
-<<<<<<< HEAD
-=======
 
 	//create a player transform:
 	scene.transforms.emplace_back();
@@ -68,7 +66,6 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 	//create collision system
 	collisionSystem = new CollisionSystem();
 
->>>>>>> 4128f98088a4e8ef96bf9cbbd9071e4aa9563cff
 	// get the transforms of all players' models and portals
 	for(uint8_t i =0; i < PLAYER_NUM; i++){
 		for (auto &transform : scene.transforms) {

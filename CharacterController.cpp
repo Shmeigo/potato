@@ -96,8 +96,9 @@ void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
 	//update player orientation
 	character->rotation = glm::angleAxis(glm::radians(current_angle), glm::vec3(0.0f, 0.0f, 1.0f));
 
+	// start char at different position to not get stuck in map
 	if (!done) {
-		character->position = glm::vec3(0, 0, 0);
+		character->position = glm::vec3(1, 0, 0);
 		done = true;
 	}
 } 
