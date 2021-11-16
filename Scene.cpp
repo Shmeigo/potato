@@ -458,7 +458,7 @@ const char* fragment_shader = "#version 330 core\n"
 "out vec4 FragColor;\n"
 "in vec3 Normal;\n"
 "void main() {\n"
-"	float c = abs(dot(Normal, normalize(vec3(1, 1, 0))));\n"
+"	float c = dot(Normal, normalize(vec3(1, 1, 0)));\n"
 "	FragColor = vec4(c, c, c, 1);\n"
 "}\n";
 
