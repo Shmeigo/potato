@@ -18,9 +18,9 @@ public:
 	};
 
 	CollisionSystem() {}
-	AddElement(Collidable* element) { elements.push_back(element); }
+	void AddElement(Collidable* element) { elements.push_back(element); }
 
 private:
-	vector<Collidable*> elements;  
+	std::vector<Collidable*> elements;  
 
 };
