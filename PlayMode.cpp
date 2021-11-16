@@ -38,11 +38,43 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 });
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
+<<<<<<< HEAD
+=======
+
+	//create a player transform:
+	scene.transforms.emplace_back();
+	my_transform = &scene.transforms.back();
+
+	//create initial transforms for the portals:
+	scene.transforms.emplace_back();
+	p1_transform = &scene.transforms.back();
+
+	scene.transforms.emplace_back();
+	p2_transform = &scene.transforms.back();
+
+	//create a player camera
+	scene.transforms.emplace_back();
+	scene.cameras.emplace_back(&scene.transforms.back());
+	my_camera = &scene.cameras.back();
+	my_camera->fovy = glm::radians(60.0f);
+	my_camera->near = 0.01f;
+
+	//create camera controller to control the camera
+	cameraController = new CameraController(my_camera, my_transform, glm::vec3(0.0f), 1.5f, 2.5f, 1.5f, 0.0f, 0.5f, 1.2f);
+
+	//create player controller to control the player
+	characterController = new CharacterController(my_transform, my_camera);
+
+	//create collision system
+	collisionSystem = new CollisionSystem();
+
+>>>>>>> 4128f98088a4e8ef96bf9cbbd9071e4aa9563cff
 	// get the transforms of all players' models and portals
 	for(uint8_t i =0; i < PLAYER_NUM; i++){
 		for (auto &transform : scene.transforms) {
 			if (transform.name == "Player" + std::to_string(i+1)) {
 				players_transform[i] = &transform;
+				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 0.6f));
 			}
 			if (transform.name == "Player" + std::to_string(i+1) + "Portal1") {
 				portal1_transform[i] = &transform;
@@ -67,30 +99,6 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 		}
 	}
 
-	//create a player transform:
-	scene.transforms.emplace_back();
-	my_transform = &scene.transforms.back();
-
-	//create initial transforms for the portals:
-	scene.transforms.emplace_back();
-	p1_transform = &scene.transforms.back();
-
-	scene.transforms.emplace_back();
-	p2_transform = &scene.transforms.back();
-
-	//create a player camera attached to a child of the player transform:
-	scene.transforms.emplace_back();
-	scene.cameras.emplace_back(&scene.transforms.back());
-	my_camera = &scene.cameras.back();
-	my_camera->fovy = glm::radians(60.0f);
-	my_camera->near = 0.01f;
-
-	//create camera controller to control the camera
-	cameraController = new CameraController(my_camera, my_transform, glm::vec3(0.0f), 1.5f, 2.5f, 1.5f, 0.0f, 0.5f, 1.2f);
-
-	//create player controller to control the player
-	characterController = new CharacterController(my_transform, my_camera);
-
 	// font
 	hintFont = std::make_shared<TextRenderer>(data_path("OpenSans-B9K8.ttf"));
 	messageFont = std::make_shared<TextRenderer>(data_path("SeratUltra-1GE24.ttf"));
@@ -103,6 +111,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 	// wasd
 	// e to place portals
+	// left mouse button to attack
 	if (evt.type == SDL_KEYDOWN) {
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
@@ -147,6 +156,15 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	} else if (evt.type == SDL_MOUSEBUTTONDOWN) {
 		if (SDL_GetRelativeMouseMode() == SDL_FALSE) {
 			SDL_SetRelativeMouseMode(SDL_TRUE);
+			
+		}
+		if (evt.button.button == SDL_BUTTON_LEFT) {
+			attack.pressed = true;
+			return true;
+		}
+	} else if (evt.type == SDL_MOUSEBUTTONUP) {
+		if (evt.button.button == SDL_BUTTON_LEFT) {
+			attack.pressed = false;
 			return true;
 		}
 	}
@@ -167,18 +185,24 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 
 void PlayMode::update(float elapsed) {
 	// update my own transform locally
-	{
+	if (my_id != 0) {
 		//combine inputs into a force:
 		glm::vec2 force = glm::vec2(0.0f);
 		if (left.pressed && !right.pressed) force.x =-1.0f;
 		if (!left.pressed && right.pressed) force.x = 1.0f;
 		if (down.pressed && !up.pressed) force.y =-1.0f;
 		if (!down.pressed && up.pressed) force.y = 1.0f;
+
+		// update player movement
+		characterController->UpdateCharacter(force, elapsed);
+
+		// place portals
 		if (place.pressed && can_place) {
 			if (place_p1) {
 				p1_transform->position = my_transform->position;
 				p1_transform->rotation = my_transform->rotation;
-			} else {
+			}
+			else {
 				p2_transform->position = my_transform->position;
 				p2_transform->rotation = my_transform->rotation;
 				both_placed = true;
@@ -187,8 +211,6 @@ void PlayMode::update(float elapsed) {
 			can_place = false;
 			place_p1 = !place_p1;
 		}
-
-		characterController->UpdateCharacter(force, elapsed);
 
 		// check if I stepped into a portal
 		if (glm::distance(my_transform->position, p1_transform->position) < 0.5f && 
@@ -204,21 +226,37 @@ void PlayMode::update(float elapsed) {
 			can_teleport = true;
 		}
 
-		// update my model's transform, if i know which model is mine
-		if(my_id!=0){
-			players_transform[my_id-1]->position = my_transform->position;
-			players_transform[my_id-1]->rotation = my_transform->rotation;
-			portal1_transform[my_id-1]->position = p1_transform->position;
-			portal1_transform[my_id-1]->rotation = p1_transform->rotation;
-			portal2_transform[my_id-1]->position = p2_transform->position;
-			portal2_transform[my_id-1]->rotation = p2_transform->rotation;
+		//attack command
+		hit_id = 0;
+		if (hitTimer <= 0.0f) {
+			if (attack.pressed) {
+				hitTimer = hitCD;
+				hit_id = collisionSystem->CheckOverLap(my_id, attackDegree, attackRadius);
+				//std::cout << "attack" << std::endl;
+			}
 		}
+		else {
+			hitTimer -= elapsed;
+		}
+		
+		//fix overlap with other players
+		collisionSystem->FixOverLap(my_id);
+
+		//update players and portals position
+		players_transform[my_id-1]->position = my_transform->position;
+		players_transform[my_id-1]->rotation = my_transform->rotation;
+		portal1_transform[my_id-1]->position = p1_transform->position;
+		portal1_transform[my_id-1]->rotation = p1_transform->rotation;
+		portal2_transform[my_id-1]->position = p2_transform->position;
+		portal2_transform[my_id-1]->rotation = p2_transform->rotation;
+		
+
+		//update camera
+		cameraController->UpdateCamera();
 	}
 
-	cameraController->UpdateCamera();
-
 	// sending my info to server:
-	if (left.pressed || right.pressed || down.pressed || up.pressed || mouse_x!=0 || place.pressed || !can_teleport) {
+	{
 		// convert info to msg
 		Client_Player myself(
 			my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
@@ -232,7 +270,7 @@ void PlayMode::update(float elapsed) {
 		c.send_buffer.insert(c.send_buffer.end(), client_message.begin(), client_message.end());
 	}
 
-	//send/receive data:
+	//receive data:
 	client.poll([this](Connection *c, Connection::Event event){
 		if (event == Connection::OnOpen) {
 			std::cout << "[" << c->socket << "] opened" << std::endl;
@@ -286,6 +324,9 @@ void PlayMode::update(float elapsed) {
 			client_player.read_from_message(content, id, gotHit);
 			
 			// Todo: use gotHit below
+			if (id == my_id && gotHit) {
+				std::cout << "I am attacked" << std::endl;
+			}
 
 			// --------- process info ---------- //
 			// is this my info ? (server will put my own info at first)
@@ -304,6 +345,8 @@ void PlayMode::update(float elapsed) {
 					players_transform[id-1]->draw = true;
 					portal1_transform[id-1]->draw = true;
 					portal2_transform[id-1]->draw = true;
+					//adjust collision transform
+					collisionSystem->elements[my_id - 1]->parent = my_transform;
 				}
 			}
 			// other players' info, update their models' transform & portals
@@ -325,7 +368,10 @@ void PlayMode::update(float elapsed) {
 			i += Server_Player::Server_Player_mes_size;
 		}
 
-		// game logic update here
+		// game logic 
+
+		
+		
 	}
 
 }

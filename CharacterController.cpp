@@ -27,10 +27,11 @@ void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
 		glm::vec3 right = frame[0];
 		glm::vec3 forward = -frame[2];
-		//clear z component
 		forward = glm::normalize(glm::vec3(forward.x, forward.y, 0.0f));
-		forward.z = 0.0f;
 		glm::vec3 direction = move.x * right + move.y * forward;
+
+		//clear z component
+		direction.z = 0.0f;
 
 		//update velocity
 		velocity += direction * acceleration * elapsed;

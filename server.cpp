@@ -7,6 +7,7 @@
 #include <cassert>
 #include <unordered_map>
 #include "NetworkPlayer.hpp"
+#include <unordered_set>
 
 #ifdef _WIN32
 extern "C" { uint32_t GetACP(); }
@@ -65,6 +66,10 @@ int main(int argc, char **argv) {
 		}
 
 		static auto next_tick = std::chrono::steady_clock::now() + std::chrono::duration< double >(ServerTick);
+
+		//hit list
+		std::unordered_set<int> hit_list;
+
 		//process incoming data from clients until a tick has elapsed:
 		while (true) {
 			auto now = std::chrono::steady_clock::now();
@@ -108,7 +113,7 @@ int main(int argc, char **argv) {
 					// ----------- handle messages from client ---------- //
 					uint8_t hit_id;
 					player.read_from_message(c, hit_id);
-					// todo: do smthing here with the hit id
+					hit_list.insert(hit_id);
 				}
 			}, remain);
 		}
@@ -124,6 +129,12 @@ int main(int argc, char **argv) {
 
 			// ------- put all players' infos -------- //
 			// put the info of client itself at first
+			if (hit_list.find(player.id) != hit_list.end()) {
+				player.gotHit = true;
+			}
+			else {
+				player.gotHit = false;
+			}
 			player.convert_to_message(server_message);
 			// put the info of other players 
 			for (auto &[c_other, player_other] : players){
