@@ -71,7 +71,7 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 		for (auto &transform : scene.transforms) {
 			if (transform.name == "Player" + std::to_string(i+1)) {
 				players_transform[i] = &transform;
-				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 1.0f));
+				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 0.6f));
 			}
 			if (transform.name == "Player" + std::to_string(i+1) + "Portal1") {
 				portal1_transform[i] = &transform;
@@ -220,6 +220,12 @@ void PlayMode::update(float elapsed) {
 		}
 	}
 
+	//checking collision with other players
+	if (my_id != 0) {
+		collisionSystem->FixOverLap(my_id);
+	}
+
+	//update camera
 	cameraController->UpdateCamera();
 
 	// sending my info to server:
@@ -309,6 +315,8 @@ void PlayMode::update(float elapsed) {
 					players_transform[id-1]->draw = true;
 					portal1_transform[id-1]->draw = true;
 					portal2_transform[id-1]->draw = true;
+					//adjust collision transform
+					collisionSystem->elements[my_id - 1]->parent = my_transform;
 				}
 			}
 			// other players' info, update their models' transform & portals
@@ -330,7 +338,10 @@ void PlayMode::update(float elapsed) {
 			i += Server_Player::Server_Player_mes_size;
 		}
 
-		// game logic update here
+		// game logic 
+
+		
+		
 	}
 
 }

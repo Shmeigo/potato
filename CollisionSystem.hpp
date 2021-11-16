@@ -11,6 +11,7 @@ class CollisionSystem {
 public:
 	struct Collidable {
 		Collidable(CollisionSystem * system_, Scene::Transform* parent_, float radius_) : system(system_), parent(parent_), radius(radius_){}
+		void FixOverLap();
 
 		CollisionSystem* system;
 		Scene::Transform* parent;
@@ -19,8 +20,8 @@ public:
 
 	CollisionSystem() {}
 	void AddElement(Collidable* element) { elements.push_back(element); }
+	void FixOverLap(int CollidableID) { elements[CollidableID - 1]->FixOverLap(); }
 
-private:
-	std::vector<Collidable*> elements;  
-
+	std::vector<Collidable*> elements;
+	  
 };
