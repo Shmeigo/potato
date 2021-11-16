@@ -89,6 +89,11 @@ void Scene::draw(Camera const &camera) const {
 
 void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_light) const {
 
+	// bind the framebuffer first so all the Drawables are captured in it
+	glBindFramebuffer(GL_FRAMEBUFFER, skeletals.front().fbo);
+	glEnable(GL_DEPTH_TEST);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	//Iterate through all drawables, sending each one to OpenGL:
 	for (auto const &drawable : drawables) {
 		//Reference to drawable's pipeline for convenience:
@@ -185,6 +190,24 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 			//GL_ERRORS();
 		}
 	}
+
+	// now bind the default framebuffer and render the quad
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glUseProgram(skeletals.front().quad_program);
+	glBindVertexArray(skeletals.front().quad_vao);
+	unsigned int texloc = glGetUniformLocation(skeletals.front().quad_program, "ScreenTexture");
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, skeletals.front().tex);
+	glUniform1i(texloc, 1);
+	unsigned int depthloc = glGetUniformLocation(skeletals.front().quad_program, "ScreenDepth");
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, skeletals.front().ren);
+	glUniform1i(depthloc, 2);
+	
+	glDrawArrays(GL_TRIANGLES, 0, 18);
+	glBindVertexArray(0);
+	glUseProgram(0);
 
 	GL_ERRORS();
 }
@@ -437,11 +460,49 @@ const char* vertex_shader = "#version 330 core\n"
 "}\n";
 
 const char* fragment_shader = "#version 330 core\n"
-"out vec4 FragColor;\n"
+"layout (location = 0) out vec4 FragColor;\n"
 "in vec3 Normal;\n"
 "void main() {\n"
 "	float c = dot(Normal, normalize(vec3(1, 1, 0)));\n"
-"	FragColor = vec4(c, c, c, 1);\n"
+"	FragColor = vec4(0.09f, 0.15f, 0.454f, 1);\n"
+"}\n";
+
+[[maybe_unused]]
+const char* vertex_shader_postprocess = "#version 330 core\n"
+"layout (location = 0) in vec4 Position;\n"
+"void main() {\n"
+"	gl_Position = Position;\n"
+"}\n";
+
+[[maybe_unused]]
+const char* fragment_shader_postprocess = 
+"#version 330 core\n"
+"precision mediump float;\n"
+"uniform sampler2D ScreenTexture;\n"
+"uniform sampler2D ScreenDepth;\n"
+"vec4 getTextureColor(float x, float y) {\n"
+"    return texture(ScreenTexture, vec2(x/1920.0f, y/1080.0f));\n"
+"}\n"
+"vec4 getTextureDepth(float x, float y) {\n"
+"    return texture(ScreenDepth, vec2(x/1920.0f, y/1080.0f));\n"
+"}\n"
+"out vec4 FragColor;\n"
+"void main() {\n"
+	"float c = getTextureDepth(gl_FragCoord.x-3.0f, gl_FragCoord.y).x;\n"
+	"float c1 = getTextureDepth(gl_FragCoord.x+3.0f, gl_FragCoord.y).x;\n"
+	"float u = getTextureDepth(gl_FragCoord.x, gl_FragCoord.y-2.0f).x;\n"
+	"float u1 = getTextureDepth(gl_FragCoord.x, gl_FragCoord.y+2.0f).x;\n"
+	"float dx = abs(c - c1);\n"
+	"float dy = abs(u - u1);\n"
+	"if (dy > dx && dy > 0.0005f) {\n"
+	"	FragColor = vec4(1.0f, 0, 0.48f, 1);\n"
+	"}\n"
+	"else if (dx > dy && dx > 0.0005f) {\n"
+	"	FragColor = vec4(0.466f, 0.85f, 0.44f, 1);\n"
+	"}\n"
+	"else {\n"
+	"	FragColor = getTextureColor(gl_FragCoord.x, gl_FragCoord.y);\n"
+	"}\n"
 "}\n";
 
 	int status;
@@ -482,6 +543,63 @@ const char* fragment_shader = "#version 330 core\n"
 		std::cerr << log << std::endl;
 	}
 
+
+	int vshader_post = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vshader_post, 1, &vertex_shader_postprocess, NULL);
+	glCompileShader(vshader_post);
+	glGetShaderiv(vshader_post, GL_COMPILE_STATUS, &status);
+	if (status != GL_TRUE) {
+		char log[1024] = {0};
+		int l;
+		glGetShaderInfoLog(vshader_post, 1024, &l, log);
+		std::cerr << log << std::endl;
+	}
+
+	int fshader_post = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fshader_post, 1, &fragment_shader_postprocess, NULL);
+	glCompileShader(fshader_post);
+
+	glGetShaderiv(fshader_post, GL_COMPILE_STATUS, &status);
+	if (status != GL_TRUE) {
+		char log[1024] = {0};
+		int l;
+		glGetShaderInfoLog(fshader_post, 1024, &l, log);
+		std::cerr << log << std::endl;
+	}
+
+	quad_program = glCreateProgram();
+	glAttachShader(quad_program, vshader_post);
+	glAttachShader(quad_program, fshader_post);
+	glLinkProgram(quad_program);
+
+	glGetProgramiv(quad_program, GL_LINK_STATUS, &status);
+	if (status != GL_TRUE) {
+		char log[1024] = {0};
+		int l;
+		glGetProgramInfoLog(quad_program, 1024, &l, log);
+		std::cerr << log << std::endl;
+	}
+
+	float quad[18] = {
+		-1.0f, -1.0f, 0.0f,
+		1.0f, -1.0f, 0.0f,
+		-1.0f,  1.0f, 0.0f,
+		-1.0f,  1.0f, 0.0f,
+		1.0f, -1.0f, 0.0f,
+		1.0f,  1.0f, 0.0f,
+	};
+
+	glGenVertexArrays(1, &quad_vao);
+	unsigned int quad_vbo;
+	glGenBuffers(1, &quad_vbo);
+	
+	glBindVertexArray(quad_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
+	glBufferData(GL_ARRAY_BUFFER, 18 * 4, quad, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
+
 	GL_ERRORS();
 
 	// don't transfer stuff rn
@@ -508,6 +626,48 @@ const char* fragment_shader = "#version 330 core\n"
 	for (int i = 0; i < num_meshes[0]; i++) {
 		meshes.emplace_back(i, &nodes);
 	}
+
+		std::cerr << "Doing framebuffer shenanigans...\n";
+
+	// allocate a new framebuffer
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	// allocate a new texture to hold the render output
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1920, 1080, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	// allocate a renderbuffer to store depth output for depth testing
+	// glGenRenderbuffers(1, &ren);
+	// glBindRenderbuffer(GL_RENDERBUFFER, ren);
+	// glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 1920, 1080);
+	// glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, ren);
+	glGenTextures(1, &ren);
+	glBindTexture(GL_TEXTURE_2D, ren);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, 1920, 1080, 0,GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	
+	// attach texture to framebuffer's color buffer at position 0
+	// this is why the before-fragment shader now needs a "layout (location = 0)"
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, ren, 0);
+	
+	unsigned int drawBuffers[2] = {GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT};
+	glDrawBuffers(2, drawBuffers);
+
+	// was the framebuffer constructed properly?
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cerr << "Something went wrong with creating the framebuffer\n";
+	}
+	else {
+		std::cerr << "Framebuffer created successfully!\n";
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 Scene::Skeletal::AnimatedMesh::AnimatedMesh(int i, const std::vector<Node>* n) : nodes(n) {
@@ -580,6 +740,7 @@ Scene::Skeletal::AnimatedMesh::AnimatedMesh(int i, const std::vector<Node>* n) :
 		std::cerr << bone.node_id << ", ";
 	}
 	std::cerr << std::endl;
+
 }
 
 void Scene::Skeletal::update_nodes(int frame) {

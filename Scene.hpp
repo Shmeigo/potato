@@ -126,7 +126,7 @@ struct Scene {
 		Skeletal(Transform *transform_);
 		Transform * transform;
 
-		unsigned int program;
+		unsigned int program, fbo, tex, ren, quad_program, quad_vao;
 		std::vector<Node> nodes;
 		std::vector<Animation> animations;
 
