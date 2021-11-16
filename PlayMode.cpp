@@ -39,11 +39,39 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 
+	//create a player transform:
+	scene.transforms.emplace_back();
+	my_transform = &scene.transforms.back();
+
+	//create initial transforms for the portals:
+	scene.transforms.emplace_back();
+	p1_transform = &scene.transforms.back();
+
+	scene.transforms.emplace_back();
+	p2_transform = &scene.transforms.back();
+
+	//create a player camera
+	scene.transforms.emplace_back();
+	scene.cameras.emplace_back(&scene.transforms.back());
+	my_camera = &scene.cameras.back();
+	my_camera->fovy = glm::radians(60.0f);
+	my_camera->near = 0.01f;
+
+	//create camera controller to control the camera
+	cameraController = new CameraController(my_camera, my_transform, glm::vec3(0.0f), 1.5f, 2.5f, 1.5f, 0.0f, 0.5f, 1.2f);
+
+	//create player controller to control the player
+	characterController = new CharacterController(my_transform, my_camera);
+
+	//create collision system
+	collisionSystem = new CollisionSystem();
+
 	// get the transforms of all players' models and portals
 	for(uint8_t i =0; i < PLAYER_NUM; i++){
 		for (auto &transform : scene.transforms) {
 			if (transform.name == "Player" + std::to_string(i+1)) {
 				players_transform[i] = &transform;
+				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 1.0f));
 			}
 			if (transform.name == "Player" + std::to_string(i+1) + "Portal1") {
 				portal1_transform[i] = &transform;
@@ -67,30 +95,6 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 			portal2_transform[i]->draw = false;
 		}
 	}
-
-	//create a player transform:
-	scene.transforms.emplace_back();
-	my_transform = &scene.transforms.back();
-
-	//create initial transforms for the portals:
-	scene.transforms.emplace_back();
-	p1_transform = &scene.transforms.back();
-
-	scene.transforms.emplace_back();
-	p2_transform = &scene.transforms.back();
-
-	//create a player camera attached to a child of the player transform:
-	scene.transforms.emplace_back();
-	scene.cameras.emplace_back(&scene.transforms.back());
-	my_camera = &scene.cameras.back();
-	my_camera->fovy = glm::radians(60.0f);
-	my_camera->near = 0.01f;
-
-	//create camera controller to control the camera
-	cameraController = new CameraController(my_camera, my_transform, glm::vec3(0.0f), 1.5f, 2.5f, 1.5f, 0.0f, 0.5f, 1.2f);
-
-	//create player controller to control the player
-	characterController = new CharacterController(my_transform, my_camera);
 
 	// font
 	hintFont = std::make_shared<TextRenderer>(data_path("OpenSans-B9K8.ttf"));
@@ -206,7 +210,7 @@ void PlayMode::update(float elapsed) {
 		}
 
 		// update my model's transform, if i know which model is mine
-		if(my_id!=0){
+		if(my_id != 0){
 			players_transform[my_id-1]->position = my_transform->position;
 			players_transform[my_id-1]->rotation = my_transform->rotation;
 			portal1_transform[my_id-1]->position = p1_transform->position;
@@ -219,7 +223,7 @@ void PlayMode::update(float elapsed) {
 	cameraController->UpdateCamera();
 
 	// sending my info to server:
-	if (left.pressed || right.pressed || down.pressed || up.pressed || mouse_x!=0 || place.pressed || !can_teleport) {
+	{
 		// convert info to msg
 		Client_Player myself(
 			my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
@@ -233,7 +237,7 @@ void PlayMode::update(float elapsed) {
 		c.send_buffer.insert(c.send_buffer.end(), client_message.begin(), client_message.end());
 	}
 
-	//send/receive data:
+	//receive data:
 	client.poll([this](Connection *c, Connection::Event event){
 		if (event == Connection::OnOpen) {
 			std::cout << "[" << c->socket << "] opened" << std::endl;

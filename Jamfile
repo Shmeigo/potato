@@ -149,6 +149,7 @@ CLIENT_NAMES =
 	NetworkPlayer
 	CameraController
 	CharacterController
+	CollisionSystem
 	;
 
 SERVER_NAMES =

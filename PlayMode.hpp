@@ -6,6 +6,7 @@
 #include "NetworkPlayer.hpp"
 #include "CameraController.hpp"
 #include "CharacterController.hpp"
+#include "CollisionSystem.hpp"
 
 #include <glm/glm.hpp>
 #include <vector>
@@ -44,18 +45,17 @@ struct PlayMode : Mode {
 	Scene scene;
 
 	// Camera Controller
-	CameraController *cameraController;
+	CameraController * cameraController;
 
 	// Player Controller
-	CharacterController* characterController;
+	CharacterController * characterController;
+
+	// Collision System
+	CollisionSystem* collisionSystem;
 
 	// gameplay related
 	const glm::vec3 portalInitPos = glm::vec3(-7,-1,-3);
 	uint8_t hit_id = 0; // who I hit (0 means hit no one)
-
-	//glm::vec2 curVelocity = glm::vec3(0);
-	//float acceleration = 1.5f;
-	//float friction = 1.0f;
 
 	bool ping;
 
