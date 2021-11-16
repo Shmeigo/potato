@@ -4,7 +4,18 @@ CharacterController::CharacterController(Scene::Transform* character_, Scene::Ca
 	character(character_), camera(camera_), 
 	velocity(glm::vec3(0.0f)), current_angle(0.0f), target_angle(0.0f)
 { 
-	
+	// load heightmap and collisionmap
+	std::ifstream collision_in(data_path("map/collision.txt"));
+	int count = 0;
+	std::string irrelevant;
+	while(collision_in >> irrelevant) {
+		assert(count < 2048 * 2048);
+		collision_map[count] = (float)::atof(irrelevant.c_str());
+		count++;
+	}
+	assert(count == 2048*2048);
+
+	character->position = glm::vec3(0, 0, 0);
 }
 
 void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
@@ -67,8 +78,25 @@ void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
 	
 
 	//update position
+	glm::vec3 old_position = character->position;
 	character->position += velocity * elapsed;
 
+	// map -20 to 20 to 0 to 2048
+	// why is it -20 to 20? Not quite sure, it may be something to do with the scaling in blender
+	// but -20 to 20 seems to work fine
+	unsigned coord_x = unsigned(((character->position.x + 20.0f)/40.0f) * 2048.0f);
+	unsigned coord_y = unsigned(((character->position.y + 20.0f)/40.0f) * 2048.0f);
+	float coll = collision_map[coord_x * 2048 + (2048-coord_y)];
+	std::cerr << character->position.x << " " << character->position.y << " " << coll << std::endl;
+	if (coll < 0.95f) {
+		std::cerr << "HIT!\n";
+		character->position = old_position;
+	}
 	//update player orientation
 	character->rotation = glm::angleAxis(glm::radians(current_angle), glm::vec3(0.0f, 0.0f, 1.0f));
+
+	if (!done) {
+		character->position = glm::vec3(0, 0, 0);
+		done = true;
+	}
 } 

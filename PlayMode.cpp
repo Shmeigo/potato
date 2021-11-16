@@ -15,13 +15,13 @@
 
 GLuint stage_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > stage_meshes(LoadTagDefault, []() -> MeshBuffer const * {
-	MeshBuffer const *ret = new MeshBuffer(data_path("city.pnct"));
+	MeshBuffer const *ret = new MeshBuffer(data_path("field.pnct"));
 	stage_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
 
 Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
-	return new Scene(data_path("city.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
+	return new Scene(data_path("field.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
 		Mesh const &mesh = stage_meshes->lookup(mesh_name);
 
 		scene.drawables.emplace_back(transform);
@@ -38,7 +38,6 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 });
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
-
 	// get the transforms of all players' models and portals
 	for(uint8_t i =0; i < PLAYER_NUM; i++){
 		for (auto &transform : scene.transforms) {

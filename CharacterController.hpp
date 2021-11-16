@@ -7,6 +7,15 @@
 #include <iostream>
 #include <cmath>
 #include <math.h>
+#include <array>
+#include <fstream>
+#include "data_path.hpp"
+
+// // to make it easier to print vec3s
+// std::ostream& operator<<(std::ostream& out, const glm::vec3& vec) {
+// 	out << "[vec3 " << vec.x << " " << vec.y << " " << vec.z << "]";
+// 	return out;
+// }
 
 class CharacterController {
 public:
@@ -26,5 +35,6 @@ private:
 	float current_angle;
 	float target_angle;
 	float angle_speed = 720.0f;
-
+	bool done = false;
+	std::array<float, 2048*2048> collision_map;
 };
