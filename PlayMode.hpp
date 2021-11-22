@@ -7,6 +7,7 @@
 #include "CameraController.hpp"
 #include "CharacterController.hpp"
 #include "CollisionSystem.hpp"
+#include "AnimationStateMachine.hpp"
 
 #include <glm/glm.hpp>
 #include <vector>
@@ -28,18 +29,7 @@ struct PlayMode : Mode {
 		uint8_t pressed = 0;
 	} left, right, down, up, place, attack;
 
-	enum class AnimationState {
-		IDLE,
-		RUN,
-		HIT_1,
-		BLOCK
-	} player_animation_state = AnimationState::IDLE;
-	AnimationState last_player_animation_state = AnimationState::RUN;
-
-	std::map<AnimationState, std::pair<unsigned, unsigned>> animation_times;
-	std::map<AnimationState, bool> animation_is_oneshot;
-
-	unsigned int current_frame = 0;
+	AnimationStateMachine player_animation_machine;
 	float frametime = 0.f;
 
 	// --------- local game logics -------- //

@@ -757,11 +757,15 @@ void Scene::Skeletal::update_nodes(int frame) {
 			nodes[i].overall_transform = nodes[nodes[i].parent_id].overall_transform * nodes[i].transform;
 		}
 	}
+
+	for (auto& mesh : meshes) {
+		mesh.update_bone_transforms();
+	}
 }
 
 void Scene::Skeletal::AnimatedMesh::update_bone_transforms() {
+	auto& ns = *nodes;
 	for (int i = 0; i < bones.size(); i++) {
-		auto& ns = *nodes;
 		bone_transforms[i] = ns[bones[i].node_id].overall_transform * bones[i].inverse_binding;
 	}
 }
