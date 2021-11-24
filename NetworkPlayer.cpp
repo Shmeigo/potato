@@ -1,17 +1,19 @@
 #include "NetworkPlayer.hpp"
 
-size_t Client_Player::Client_Player_mes_size = ( sizeof(glm::vec3) + sizeof(glm::quat) ) * 3 + 1;
-size_t Server_Player::Server_Player_mes_size = sizeof(uint8_t) + ( sizeof(glm::vec3) + sizeof(glm::quat) ) * 3 + sizeof(bool);
+size_t Client_Player::Client_Player_mes_size = ( sizeof(glm::vec3) + sizeof(glm::quat) ) * 3 + 1 + 1;
+size_t Server_Player::Server_Player_mes_size = sizeof(uint8_t) + ( sizeof(glm::vec3) + sizeof(glm::quat) ) * 3 + sizeof(bool) + 1;
 std::array<bool, PLAYER_NUM> Server_Player::id_used = {false};
 
 // ------------------------------ client side -------------------------- //
 
 Client_Player::Client_Player(
     glm::vec3 position_, glm::quat rotation_, glm::vec3 portal1_position_, 
-    glm::quat portal1_rotation_, glm::vec3 portal2_position_, glm::quat portal2_rotation_, uint8_t hit_id_ 
+    glm::quat portal1_rotation_, glm::vec3 portal2_position_, glm::quat portal2_rotation_, uint8_t hit_id_,
+    AnimationState animState_ 
 ):
 position(position_),rotation(rotation_), portal1_position(portal1_position_), portal1_rotation(portal1_rotation_),
-portal2_position(portal2_position_), portal2_rotation(portal2_rotation_), hit_id(hit_id_)
+portal2_position(portal2_position_), portal2_rotation(portal2_rotation_), hit_id(hit_id_),
+animState(animState_)
 {};
 
 void Client_Player::convert_to_message(std::vector<unsigned char> & client_message){
@@ -56,10 +58,14 @@ void Client_Player::convert_to_message(std::vector<unsigned char> & client_messa
     }
     // hit id
     client_message.emplace_back((unsigned char) hit_id );
+    // anim state
+    client_message.emplace_back((unsigned char) animState );
+
+    // -----------
     assert(client_message.size() == Client_Player_mes_size);
 }
 
-void Client_Player::read_from_message(const std::vector<unsigned char> & server_message, uint8_t & id, bool & gotHit){
+void Client_Player::read_from_message(const std::vector<unsigned char> & server_message, uint8_t & id, bool & gotHit, AnimationState & animState){
     assert(server_message.size() == Server_Player::Server_Player_mes_size);
     // id
     id = (uint8_t)server_message[0];
@@ -106,10 +112,12 @@ void Client_Player::read_from_message(const std::vector<unsigned char> & server_
     }
     portal2_rotation = portal2_rotation_bytes.quat_value;
     index += sizeof(glm::quat);
-    
     // got hit
     gotHit = (bool) server_message[index];
     index += sizeof(bool);
+    // anim state
+    animState = (AnimationState) server_message[index];
+    index += 1;
 }
 
 // ----------------------------- server side --------------------------- //
@@ -174,6 +182,8 @@ void Server_Player::convert_to_message(std::vector<unsigned char> & server_messa
     }
     // got hit
     server_message.emplace_back((unsigned char) gotHit);
+    // anim state
+    server_message.emplace_back((AnimationState) animState);
 
     assert(server_message.size() - before == Server_Player_mes_size);
 }
@@ -235,6 +245,9 @@ void Server_Player::read_from_message(Connection * c, uint8_t & hit_id){
         index += sizeof(glm::quat);
         // hit id
         hit_id = (uint8_t)c->recv_buffer[index];
+        index += 1;
+        // anim state
+        animState = (AnimationState)c->recv_buffer[index];
 
         // erase bytes (remeber +1 for the 'b')
         c->recv_buffer.erase(c->recv_buffer.begin(), c->recv_buffer.begin() + client_mes_size + 1);

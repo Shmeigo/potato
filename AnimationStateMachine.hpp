@@ -1,3 +1,4 @@
+#pragma once
 // generated from animation_state_machine.py
 
 #include <map>

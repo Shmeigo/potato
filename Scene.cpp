@@ -80,17 +80,17 @@ glm::mat4 Scene::Camera::make_projection() const {
 //-------------------------
 
 
-void Scene::draw(Camera const &camera) const {
+void Scene::draw(Camera const &camera, uint8_t my_id) const {
 	assert(camera.transform);
 	glm::mat4 world_to_clip = camera.make_projection() * glm::mat4(camera.transform->make_world_to_local());
 	glm::mat4x3 world_to_light = glm::mat4x3(1.0f);
-	draw(world_to_clip, world_to_light);
+	draw(my_id, world_to_clip, world_to_light);
 }
 
-void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_light) const {
+void Scene::draw(uint8_t my_id, glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_light) const {
 
 	// bind the framebuffer first so all the Drawables are captured in it
-	glBindFramebuffer(GL_FRAMEBUFFER, skeletals.front().fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, skeletals[my_id-1].fbo);
 	glEnable(GL_DEPTH_TEST);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -171,6 +171,12 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 
 	// iterate through all skeletals, sending each one to OpenGL
 	for (const auto& skeletal : skeletals) {
+
+		// skip if specified not to draw
+		if(!skeletal.transform->draw){
+			continue;
+		}
+
 		glUseProgram(skeletal.program);
 		//GL_ERRORS();
 		glm::mat4x3 object_to_world = skeletal.transform->make_local_to_world();
@@ -182,7 +188,7 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 		//GL_ERRORS();
 		for (const auto& mesh : skeletal.meshes) {
 			unsigned int t_loc = glGetUniformLocation(skeletal.program, "BoneTransforms");
-			glUniformMatrix4fv(t_loc, mesh.bone_transforms.size(), GL_FALSE, (const float*)mesh.bone_transforms.data());
+			glUniformMatrix4fv(t_loc, (GLsizei)mesh.bone_transforms.size(), GL_FALSE, (const float*)mesh.bone_transforms.data());
 
 			glBindVertexArray(mesh.vao);
 			//GL_ERRORS();
@@ -194,15 +200,15 @@ void Scene::draw(glm::mat4 const &world_to_clip, glm::mat4x3 const &world_to_lig
 	// now bind the default framebuffer and render the quad
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glUseProgram(skeletals.front().quad_program);
-	glBindVertexArray(skeletals.front().quad_vao);
-	unsigned int texloc = glGetUniformLocation(skeletals.front().quad_program, "ScreenTexture");
+	glUseProgram(skeletals[my_id-1].quad_program);
+	glBindVertexArray(skeletals[my_id-1].quad_vao);
+	unsigned int texloc = glGetUniformLocation(skeletals[my_id-1].quad_program, "ScreenTexture");
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, skeletals.front().tex);
+	glBindTexture(GL_TEXTURE_2D, skeletals[my_id-1].tex);
 	glUniform1i(texloc, 1);
-	unsigned int depthloc = glGetUniformLocation(skeletals.front().quad_program, "ScreenDepth");
+	unsigned int depthloc = glGetUniformLocation(skeletals[my_id-1].quad_program, "ScreenDepth");
 	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, skeletals.front().ren);
+	glBindTexture(GL_TEXTURE_2D, skeletals[my_id-1].ren);
 	glUniform1i(depthloc, 2);
 	
 	glDrawArrays(GL_TRIANGLES, 0, 18);
@@ -707,7 +713,7 @@ Scene::Skeletal::AnimatedMesh::AnimatedMesh(int i, const std::vector<Node>* n) :
 	glGenBuffers(1, &id_vbo);
 	glGenBuffers(1, &ebo);
 
-	elements = indices.size();
+	elements = (unsigned int)indices.size();
 
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);

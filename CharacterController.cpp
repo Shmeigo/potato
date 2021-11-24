@@ -88,7 +88,9 @@ void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
 	unsigned coord_x = unsigned(((character->position.x + 20.0f)/40.0f) * 2048.0f);
 	unsigned coord_y = unsigned(((character->position.y + 20.0f)/40.0f) * 2048.0f);
 	float coll = collision_map[coord_x * 2048 + (2048-coord_y)];
-	std::cerr << character->position.x << " " << character->position.y << " " << coll << std::endl;
+	
+	//std::cerr << character->position.x << " " << character->position.y << " " << coll << std::endl;
+	
 	if (coll < 0.95f) {
 		std::cerr << "HIT!\n";
 		character->position = old_position;

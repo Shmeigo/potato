@@ -44,7 +44,7 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 	scene.transforms.emplace_back();
 	my_transform = &scene.transforms.back();
 
-	scene.skeletals.emplace_back(my_transform);
+	//scene.skeletals.emplace_back(my_transform);
 
 	//create initial transforms for the portals:
 	scene.transforms.emplace_back();
@@ -75,6 +75,11 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 			if (transform.name == "Player" + std::to_string(i+1)) {
 				players_transform[i] = &transform;
 				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 0.6f));
+				// add skeletal
+				if(i <1)	// can only add one skelatal, adding more will break
+				{
+					scene.skeletals.emplace_back(Scene::Skeletal(&transform));
+				}
 			}
 			if (transform.name == "Player" + std::to_string(i+1) + "Portal1") {
 				portal1_transform[i] = &transform;
@@ -98,8 +103,6 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 			portal2_transform[i]->draw = false;
 		}
 	}
-
-	
 
 	// font
 	hintFont = std::make_shared<TextRenderer>(data_path("OpenSans-B9K8.ttf"));
@@ -209,7 +212,10 @@ void PlayMode::update(float elapsed) {
 		// there is only one skeletal right now: the player
 		// extend this to other skeletals by calling update_nodes() with the frame you want to update to
 		// YOU NEED TO CALL update_nodes() for the skeletal to update
-		scene.skeletals.front().update_nodes(player_animation_machine.current_frame);
+		
+		//scene.skeletals.front().update_nodes(player_animation_machine.current_frame);
+		if(my_id !=0)
+			scene.skeletals[my_id-1].update_nodes(player_animation_machine.current_frame);
 	}
 
 	// update my own transform locally
@@ -288,7 +294,8 @@ void PlayMode::update(float elapsed) {
 		// convert info to msg
 		Client_Player myself(
 			my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
-			p2_transform->position, p2_transform->rotation, hit_id
+			p2_transform->position, p2_transform->rotation, hit_id,
+			player_animation_machine.current_state
 		);
 		std::vector<unsigned char> client_message;
 		myself.convert_to_message(client_message);
@@ -349,7 +356,8 @@ void PlayMode::update(float elapsed) {
 			Client_Player client_player;
 			uint8_t id;
 			bool gotHit;
-			client_player.read_from_message(content, id, gotHit);
+			AnimationState animState;
+			client_player.read_from_message(content, id, gotHit, animState);
 			
 			// Todo: use gotHit below
 			if (id == my_id && gotHit) {
@@ -398,13 +406,13 @@ void PlayMode::update(float elapsed) {
 
 		// game logic 
 
-		
-		
 	}
-
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
+
+	if(my_id ==0)
+		return;
 
 	//update camera aspect ratio for drawable:
 	my_camera->aspect = float(drawable_size.x) / float(drawable_size.y);
@@ -423,9 +431,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS); //this is the default depth comparison function, but FYI you can change it.
 
-	scene.draw(*my_camera);
+	scene.draw(*my_camera, my_id);
 
 	// text
+	glDisable(GL_DEPTH_TEST);
 	hintFont->draw("Your Are Player " + std::to_string(my_id), 20.0f, 550.0f, glm::vec2(0.2,0.25), glm::vec3(0.2, 0.8f, 0.2f));
 	if(ping)
 		messageFont->draw("*****", 20.0f, 500.0f, glm::vec2(0.2,0.25), glm::vec3(0.9, 0.8f, 0.2f));
