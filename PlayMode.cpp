@@ -39,12 +39,9 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 
-
 	//create a player transform:
 	scene.transforms.emplace_back();
 	my_transform = &scene.transforms.back();
-
-	//scene.skeletals.emplace_back(my_transform);
 
 	//create initial transforms for the portals:
 	scene.transforms.emplace_back();
@@ -76,9 +73,10 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 				players_transform[i] = &transform;
 				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 0.6f));
 				// add skeletal
-				if(i <1)	// can only add one skelatal, adding more will break
+				if(i <1)	// can only add one skelatal, adding more will break the sahder
 				{
-					scene.skeletals.emplace_back(Scene::Skeletal(&transform));
+					std::cout <<"adding skelatal \n";
+					scene.skeletals.emplace_back(&transform);
 				}
 			}
 			if (transform.name == "Player" + std::to_string(i+1) + "Portal1") {
@@ -107,6 +105,8 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 	// font
 	hintFont = std::make_shared<TextRenderer>(data_path("OpenSans-B9K8.ttf"));
 	messageFont = std::make_shared<TextRenderer>(data_path("SeratUltra-1GE24.ttf"));
+	heart = std::make_shared<TwoDRenderer>(data_path("heart.png"));
+	sword = std::make_shared<TwoDRenderer>(data_path("sword.png"));
 }
 
 PlayMode::~PlayMode() {
@@ -203,6 +203,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
+
 	frametime += elapsed;
 	if (frametime >= 0.03f) {
 		frametime = 0;
@@ -214,8 +215,9 @@ void PlayMode::update(float elapsed) {
 		// YOU NEED TO CALL update_nodes() for the skeletal to update
 		
 		//scene.skeletals.front().update_nodes(player_animation_machine.current_frame);
-		if(my_id !=0)
+		if(my_id !=0 && my_id-1 < scene.skeletals.size()){
 			scene.skeletals[my_id-1].update_nodes(player_animation_machine.current_frame);
+		}
 	}
 
 	// update my own transform locally
@@ -284,7 +286,6 @@ void PlayMode::update(float elapsed) {
 		portal2_transform[my_id-1]->position = p2_transform->position;
 		portal2_transform[my_id-1]->rotation = p2_transform->rotation;
 		
-
 		//update camera
 		cameraController->UpdateCamera();
 	}
@@ -407,6 +408,7 @@ void PlayMode::update(float elapsed) {
 		// game logic 
 
 	}
+
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
@@ -437,10 +439,10 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glDisable(GL_DEPTH_TEST);
 	hintFont->draw("Your Are Player " + std::to_string(my_id), 20.0f, 550.0f, glm::vec2(0.2,0.25), glm::vec3(0.2, 0.8f, 0.2f));
 	if(ping)
-		messageFont->draw("*****", 20.0f, 500.0f, glm::vec2(0.2,0.25), glm::vec3(0.9, 0.8f, 0.2f));
+		heart->Draw(glm::vec2(190.0f, 530.0f), glm::vec2(30.0f, 30.0f), 0.0f, glm::vec3(1.0f, .8f, .8f));
 	else
-		messageFont->draw("-----", 20.0f, 500.0f, glm::vec2(0.2,0.25), glm::vec3(0.9, 0.8f, 0.2f));
-
+		sword->Draw(glm::vec2(190.0f, 530.0f), glm::vec2(30.0f, 30.0f), 0.0f, glm::vec3(0.8f, .8f, 1.0f));
 
 	GL_ERRORS();
+
 }

@@ -145,6 +145,8 @@ CLIENT_NAMES =
 	load_wav
 	load_opus
 	TextRenderer
+	TwoDRenderer
+	stb_image
 	TextRenderProgram
 	NetworkPlayer
 	CameraController

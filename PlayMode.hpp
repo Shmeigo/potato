@@ -8,6 +8,7 @@
 #include "CharacterController.hpp"
 #include "CollisionSystem.hpp"
 #include "AnimationStateMachine.hpp"
+#include "TwoDRenderer.hpp"
 
 #include <glm/glm.hpp>
 #include <vector>
@@ -73,6 +74,10 @@ struct PlayMode : Mode {
 	// font
 	std::shared_ptr<TextRenderer> hintFont;
 	std::shared_ptr<TextRenderer> messageFont;
+
+	// sprite
+	std::shared_ptr<TwoDRenderer> heart;
+	std::shared_ptr<TwoDRenderer> sword;
 
 	// ------- multiplayer game logics ---------- //
 	// transforms of all players' model, including my model
