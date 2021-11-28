@@ -73,7 +73,7 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 				players_transform[i] = &transform;
 				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 0.6f));
 				// add skeletal
-				if(i <1)	// can only add one skelatal, adding more will break the sahder
+				if(true)	// can only add one skelatal, adding more will break the sahder
 				{
 					std::cout <<"adding skelatal \n";
 					scene.skeletals.emplace_back(&transform);
@@ -203,21 +203,29 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
-
+	// std::cerr << "called update()\n";
 	frametime += elapsed;
 	if (frametime >= 0.03f) {
+		// std::cerr << "Frametime update starts\n";
 		frametime = 0;
 		// time to update animation to new frame
 		player_animation_machine.update();
-
+		// std::cerr << "Animation machine update done\n";
 		// there is only one skeletal right now: the player
 		// extend this to other skeletals by calling update_nodes() with the frame you want to update to
 		// YOU NEED TO CALL update_nodes() for the skeletal to update
 		
 		//scene.skeletals.front().update_nodes(player_animation_machine.current_frame);
-		if(my_id !=0 && my_id-1 < scene.skeletals.size()){
-			scene.skeletals[my_id-1].update_nodes(player_animation_machine.current_frame);
+		// if(my_id !=0 && my_id-1 < scene.skeletals.size()){
+		// 	scene.skeletals[my_id-1].update_nodes(player_animation_machine.current_frame);
+		// }
+
+		for (auto& skeletal : scene.skeletals) {
+			// std::cerr << "skeletal update start\n";
+			skeletal.update_nodes(player_animation_machine.current_frame);
+			// std::cerr << "skeletal update end\n";
 		}
+		// std::cerr << "Frametime update ends\n";
 	}
 
 	// update my own transform locally
@@ -409,13 +417,15 @@ void PlayMode::update(float elapsed) {
 
 	}
 
+	// std::cerr << "Finished update()\n";
+
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
-
+	// std::cerr << "draw()\n";
 	if(my_id ==0)
 		return;
-
+	// std::cerr << "actual draw()\n";
 	//update camera aspect ratio for drawable:
 	my_camera->aspect = float(drawable_size.x) / float(drawable_size.y);
 
@@ -444,5 +454,5 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		sword->Draw(glm::vec2(190.0f, 530.0f), glm::vec2(30.0f, 30.0f), 0.0f, glm::vec3(0.8f, .8f, 1.0f));
 
 	GL_ERRORS();
-
+	// std::cerr << "Finished draw()\n";
 }

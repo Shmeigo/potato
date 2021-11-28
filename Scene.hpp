@@ -126,7 +126,7 @@ struct Scene {
 		Skeletal(Transform *transform_);
 		Transform * transform;
 
-		unsigned int program, fbo, tex, ren, quad_program, quad_vao;
+		unsigned int program;
 		std::vector<Node> nodes;
 		std::vector<Animation> animations;
 
@@ -140,10 +140,8 @@ struct Scene {
 			std::vector<BoneID> bone_ids;
 			std::vector<Bone> bones;
 			std::vector<glm::mat4> bone_transforms;
-
-			const std::vector<Node>* nodes;
-			AnimatedMesh(int idx, const std::vector<Node>* n);
-			void update_bone_transforms();
+			AnimatedMesh(int idx);
+			void update_bone_transforms(const std::vector<Node>& ns);
 		};
 
 		std::vector<AnimatedMesh> meshes;
@@ -157,6 +155,9 @@ struct Scene {
 	std::vector< Skeletal > skeletals;
 	std::list< Camera > cameras;
 	std::list< Light > lights;
+
+	// Scene now needs to store the framebuffer as well. Ugly  coupling, but eh
+	unsigned int fbo, color_tex, depth_tex, quad_program, quad_vao;
 
 	//The "draw" function provides a convenient way to pass all the things in a scene to OpenGL:
 	void draw(Camera const &camera, uint8_t my_id) const;
