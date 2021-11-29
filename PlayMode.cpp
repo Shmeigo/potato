@@ -38,6 +38,9 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 });
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
+	for (int i = 0; i < PLAYER_NUM; i++) {
+		animation_machines.emplace_back();
+	}
 
 	//create a player transform:
 	scene.transforms.emplace_back();
@@ -126,46 +129,46 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			//ignore repeats
 		} else if (evt.key.keysym.sym == SDLK_a) {
 			left.pressed = true;
-			player_animation_machine.set_state(RUN);
+			if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_d) {
 			right.pressed = true;
-			player_animation_machine.set_state(RUN);
+			if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_w) {
 			up.pressed = true;
-			player_animation_machine.set_state(RUN);
+			if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = true;
-			player_animation_machine.set_state(RUN);
+			if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_e) {
 			place.pressed = true;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_f) {
-			player_animation_machine.set_state(HIT_1);
+			if(my_id != 0) animation_machines[my_id-1].set_state(HIT_1);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_v) {
-			player_animation_machine.set_state(BLOCK);
+			if(my_id != 0) animation_machines[my_id-1].set_state(BLOCK);
 			return true;
 		} 
 	} else if (evt.type == SDL_KEYUP) {
 		if (evt.key.keysym.sym == SDLK_a) {
 			left.pressed = false;
-			player_animation_machine.set_state(IDLE);
+			if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_d) {
 			right.pressed = false;
-			player_animation_machine.set_state(IDLE);
+			if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_w) {
 			up.pressed = false;
-			player_animation_machine.set_state(IDLE);
+			if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = false;
-			player_animation_machine.set_state(IDLE);
+			if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_e) {
 			place.pressed = false;
@@ -203,13 +206,14 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
-	// std::cerr << "called update()\n";
 	frametime += elapsed;
-	if (frametime >= 0.03f) {
+	if (frametime >= 0.03f && my_id != 0) {
 		// std::cerr << "Frametime update starts\n";
 		frametime = 0;
 		// time to update animation to new frame
-		player_animation_machine.update();
+		for (auto& machine : animation_machines) {
+			machine.update();
+		}
 		// std::cerr << "Animation machine update done\n";
 		// there is only one skeletal right now: the player
 		// extend this to other skeletals by calling update_nodes() with the frame you want to update to
@@ -220,9 +224,11 @@ void PlayMode::update(float elapsed) {
 		// 	scene.skeletals[my_id-1].update_nodes(player_animation_machine.current_frame);
 		// }
 
-		for (auto& skeletal : scene.skeletals) {
+		int sk_id = 0;
+		for (auto sk = scene.skeletals.begin(); sk != scene.skeletals.end(); sk++) {
 			// std::cerr << "skeletal update start\n";
-			skeletal.update_nodes(player_animation_machine.current_frame);
+			sk->update_nodes(animation_machines[sk_id].current_frame);
+			sk_id++;
 			// std::cerr << "skeletal update end\n";
 		}
 		// std::cerr << "Frametime update ends\n";
@@ -301,17 +307,33 @@ void PlayMode::update(float elapsed) {
 	// sending my info to server:
 	{
 		// convert info to msg
-		Client_Player myself(
-			my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
-			p2_transform->position, p2_transform->rotation, hit_id,
-			player_animation_machine.current_state
-		);
-		std::vector<unsigned char> client_message;
-		myself.convert_to_message(client_message);
-		// send msg
-		Connection & c = client.connections.back();
-		c.send('b');
-		c.send_buffer.insert(c.send_buffer.end(), client_message.begin(), client_message.end());
+		if (my_id == 0) {
+			Client_Player myself(
+				my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
+				p2_transform->position, p2_transform->rotation, hit_id,
+				IDLE
+			);
+			std::vector<unsigned char> client_message;
+			myself.convert_to_message(client_message);
+			// send msg
+			Connection & c = client.connections.back();
+			c.send('b');
+			c.send_buffer.insert(c.send_buffer.end(), client_message.begin(), client_message.end());
+		}
+		else {
+			Client_Player myself(
+				my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
+				p2_transform->position, p2_transform->rotation, hit_id,
+				animation_machines[my_id - 1].current_state
+			);
+			std::vector<unsigned char> client_message;
+			myself.convert_to_message(client_message);
+			// send msg
+			Connection & c = client.connections.back();
+			c.send('b');
+			c.send_buffer.insert(c.send_buffer.end(), client_message.begin(), client_message.end());
+		}
+		
 	}
 
 	//receive data:
@@ -367,7 +389,6 @@ void PlayMode::update(float elapsed) {
 			bool gotHit;
 			AnimationState animState;
 			client_player.read_from_message(content, id, gotHit, animState);
-			
 			// Todo: use gotHit below
 			if (id == my_id && gotHit) {
 				std::cout << "I am attacked" << std::endl;
@@ -407,6 +428,10 @@ void PlayMode::update(float elapsed) {
 				players_transform[id-1]->rotation = client_player.rotation;
 				portal1_transform[id-1]->rotation = client_player.portal1_rotation;
 				portal2_transform[id-1]->rotation = client_player.portal2_rotation;
+
+				if (animState != animation_machines[id-1].current_state) {
+					animation_machines[id-1].set_state(animState);
+				}
 			}
 
 			// move to next player's info

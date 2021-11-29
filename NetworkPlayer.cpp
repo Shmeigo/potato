@@ -60,6 +60,7 @@ void Client_Player::convert_to_message(std::vector<unsigned char> & client_messa
     client_message.emplace_back((unsigned char) hit_id );
     // anim state
     client_message.emplace_back((unsigned char) animState );
+    //std::cerr << "Send msg: " << int((unsigned char)animState) << "\n";
 
     // -----------
     assert(client_message.size() == Client_Player_mes_size);
@@ -117,6 +118,7 @@ void Client_Player::read_from_message(const std::vector<unsigned char> & server_
     index += sizeof(bool);
     // anim state
     animState = (AnimationState) server_message[index];
+    //std::cerr << "Recv Msg: " << (AnimationState)server_message[index] << "\n";
     index += 1;
 }
 

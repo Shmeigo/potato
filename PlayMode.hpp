@@ -30,7 +30,7 @@ struct PlayMode : Mode {
 		uint8_t pressed = 0;
 	} left, right, down, up, place, attack;
 
-	AnimationStateMachine player_animation_machine;
+	std::vector<AnimationStateMachine> animation_machines;
 	float frametime = 0.f;
 
 	// --------- local game logics -------- //
