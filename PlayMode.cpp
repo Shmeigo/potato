@@ -45,6 +45,8 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 	//create a player transform:
 	scene.transforms.emplace_back();
 	my_transform = &scene.transforms.back();
+	my_transform->position = playerInitPos;
+	my_transform->rotation = playerInitRot;
 
 	//create initial transforms for the portals:
 	scene.transforms.emplace_back();
@@ -311,7 +313,7 @@ void PlayMode::update(float elapsed) {
 			Client_Player myself(
 				my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
 				p2_transform->position, p2_transform->rotation, hit_id,
-				IDLE
+				IDLE, 0
 			);
 			std::vector<unsigned char> client_message;
 			myself.convert_to_message(client_message);
@@ -324,7 +326,7 @@ void PlayMode::update(float elapsed) {
 			Client_Player myself(
 				my_transform->position, my_transform->rotation, p1_transform->position, p1_transform->rotation,
 				p2_transform->position, p2_transform->rotation, hit_id,
-				animation_machines[my_id - 1].current_state
+				animation_machines[my_id - 1].current_state, animation_machines[my_id - 1].current_frame
 			);
 			std::vector<unsigned char> client_message;
 			myself.convert_to_message(client_message);
@@ -388,7 +390,9 @@ void PlayMode::update(float elapsed) {
 			uint8_t id;
 			bool gotHit;
 			AnimationState animState;
-			client_player.read_from_message(content, id, gotHit, animState);
+			unsigned int current_frame;
+			client_player.read_from_message(content, id, gotHit, animState, current_frame);
+
 			// Todo: use gotHit below
 			if (id == my_id && gotHit) {
 				std::cout << "I am attacked" << std::endl;

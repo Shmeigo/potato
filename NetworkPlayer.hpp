@@ -9,11 +9,13 @@
 #include <array>
 #include <iostream>
 # include "AnimationStateMachine.hpp"
+
 // how many players in our game 
 static const size_t PLAYER_NUM = 16;
+
 // init positions/rotations for players
-static const glm::vec3 playerInitPos = glm::vec3(-7,-1,0);
-static const glm::vec3 playerInitPosDistance = glm::vec3(0,0,0);
+static const glm::vec3 playerInitPos = glm::vec3(-10,-1,0);
+static const glm::vec3 playerInitPosDistance = glm::vec3(-10,0,0);
 static const glm::quat playerInitRot = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
 // ------------ player class on the client side ------------ //
@@ -29,17 +31,21 @@ public:
     glm::quat portal2_rotation;
     uint8_t hit_id; // who I hit (0 means hit no one)
     AnimationState animState;
+    unsigned int curFrame;
 
     Client_Player(){};
     Client_Player(
         glm::vec3 position_, glm::quat rotation_, glm::vec3 portal1_position_, 
         glm::quat portal1_rotation_, glm::vec3 portal2_position_, glm::quat ortal2_rotation_, uint8_t hit_id_,
-        AnimationState animState_ 
+        AnimationState animState_ , unsigned int curFrame_
     );
     // convert client side player's info into bytes (and send this to server)
     void convert_to_message(std::vector<unsigned char> & client_message);
     // read the message sent by the server, and put it in the client side player obj
-    void read_from_message(const std::vector<unsigned char> & server_message, uint8_t & id, bool & gotHit, AnimationState & animState);
+    void read_from_message(
+        const std::vector<unsigned char> & server_message, uint8_t & id, bool & gotHit, 
+        AnimationState & animState_read, unsigned int & curFrame_read
+    );
 
     static size_t Client_Player_mes_size;
 };
@@ -58,6 +64,7 @@ public:
     glm::quat portal2_rotation;
     bool gotHit; // was hit by someone
     AnimationState animState;
+    unsigned int curFrame;
 
     Server_Player();
     // convert server side player's info into bytes (and send this to client)
@@ -84,4 +91,9 @@ union sizet_as_byte
 {
 	size_t sizet_value;
 	unsigned char bytes_value[sizeof(size_t)];
+};
+union unsignedInt_as_byte
+{
+    unsigned int unsignedInt_value;
+    unsigned char bytes_value[sizeof(unsigned int)];
 };

@@ -1,7 +1,7 @@
 #include "NetworkPlayer.hpp"
 
-size_t Client_Player::Client_Player_mes_size = ( sizeof(glm::vec3) + sizeof(glm::quat) ) * 3 + 1 + 1;
-size_t Server_Player::Server_Player_mes_size = sizeof(uint8_t) + ( sizeof(glm::vec3) + sizeof(glm::quat) ) * 3 + sizeof(bool) + 1;
+size_t Client_Player::Client_Player_mes_size = ( sizeof(glm::vec3) + sizeof(glm::quat) ) * 3 + 1 + 1 + sizeof(unsigned int);
+size_t Server_Player::Server_Player_mes_size = sizeof(uint8_t) + ( sizeof(glm::vec3) + sizeof(glm::quat) ) * 3 + sizeof(bool) + 1 + sizeof(unsigned int);
 std::array<bool, PLAYER_NUM> Server_Player::id_used = {false};
 
 // ------------------------------ client side -------------------------- //
@@ -9,11 +9,11 @@ std::array<bool, PLAYER_NUM> Server_Player::id_used = {false};
 Client_Player::Client_Player(
     glm::vec3 position_, glm::quat rotation_, glm::vec3 portal1_position_, 
     glm::quat portal1_rotation_, glm::vec3 portal2_position_, glm::quat portal2_rotation_, uint8_t hit_id_,
-    AnimationState animState_ 
+    AnimationState animState_ , unsigned int curFrame_
 ):
 position(position_),rotation(rotation_), portal1_position(portal1_position_), portal1_rotation(portal1_rotation_),
 portal2_position(portal2_position_), portal2_rotation(portal2_rotation_), hit_id(hit_id_),
-animState(animState_)
+animState(animState_), curFrame(curFrame_)
 {};
 
 void Client_Player::convert_to_message(std::vector<unsigned char> & client_message){
@@ -60,13 +60,20 @@ void Client_Player::convert_to_message(std::vector<unsigned char> & client_messa
     client_message.emplace_back((unsigned char) hit_id );
     // anim state
     client_message.emplace_back((unsigned char) animState );
-    //std::cerr << "Send msg: " << int((unsigned char)animState) << "\n";
+    // current frame
+    unsignedInt_as_byte curFrame_bytes;
+    curFrame_bytes.unsignedInt_value = curFrame;
+    for (size_t i =0; i < sizeof(unsigned int); i++){
+        client_message.emplace_back(curFrame_bytes.bytes_value[i]);
+    }
 
     // -----------
     assert(client_message.size() == Client_Player_mes_size);
 }
 
-void Client_Player::read_from_message(const std::vector<unsigned char> & server_message, uint8_t & id, bool & gotHit, AnimationState & animState){
+void Client_Player::read_from_message(const std::vector<unsigned char> & server_message, uint8_t & id, bool & gotHit, 
+    AnimationState & animState_read, unsigned int & curFrame_read)
+{
     assert(server_message.size() == Server_Player::Server_Player_mes_size);
     // id
     id = (uint8_t)server_message[0];
@@ -117,9 +124,15 @@ void Client_Player::read_from_message(const std::vector<unsigned char> & server_
     gotHit = (bool) server_message[index];
     index += sizeof(bool);
     // anim state
-    animState = (AnimationState) server_message[index];
-    //std::cerr << "Recv Msg: " << (AnimationState)server_message[index] << "\n";
+    animState_read = (AnimationState) server_message[index];
     index += 1;
+    // cur frame
+    unsignedInt_as_byte curFrame_bytes;
+    for (size_t j =0; j < sizeof(unsigned int); j++){
+        curFrame_bytes.bytes_value[j] = server_message[j + index];
+    }
+    curFrame_read = curFrame_bytes.unsignedInt_value;
+    index += sizeof(unsigned int);
 }
 
 // ----------------------------- server side --------------------------- //
@@ -186,6 +199,12 @@ void Server_Player::convert_to_message(std::vector<unsigned char> & server_messa
     server_message.emplace_back((unsigned char) gotHit);
     // anim state
     server_message.emplace_back((AnimationState) animState);
+    // current frame
+    unsignedInt_as_byte curFrame_bytes;
+    curFrame_bytes.unsignedInt_value = curFrame;
+    for (size_t i =0; i < sizeof(unsigned int); i++){
+        server_message.emplace_back(curFrame_bytes.bytes_value[i]);
+    }
 
     assert(server_message.size() - before == Server_Player_mes_size);
 }
@@ -250,6 +269,14 @@ void Server_Player::read_from_message(Connection * c, uint8_t & hit_id){
         index += 1;
         // anim state
         animState = (AnimationState)c->recv_buffer[index];
+        index += 1;
+        // cur frame
+        unsignedInt_as_byte curFrame_mes;
+        for (size_t j =0; j < sizeof(unsigned int); j++){
+            curFrame_mes.bytes_value[j] = c->recv_buffer[index+j];
+        }
+        curFrame = curFrame_mes.unsignedInt_value;
+        index += sizeof(unsigned int);
 
         // erase bytes (remeber +1 for the 'b')
         c->recv_buffer.erase(c->recv_buffer.begin(), c->recv_buffer.begin() + client_mes_size + 1);
