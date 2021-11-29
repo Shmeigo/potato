@@ -87,7 +87,9 @@ void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
 	// but -20 to 20 seems to work fine
 	unsigned coord_x = unsigned(((character->position.x + 20.0f)/40.0f) * 2048.0f);
 	unsigned coord_y = unsigned(((character->position.y + 20.0f)/40.0f) * 2048.0f);
-	float coll = collision_map[coord_x * 2048 + (2048-coord_y)];
+	float coll;
+	if(coord_x * 2048 + (2048-coord_y) >=0 && coord_x * 2048 + (2048-coord_y) < collision_map.size())
+		coll = collision_map[coord_x * 2048 + (2048-coord_y)];
 	
 	//std::cerr << character->position.x << " " << character->position.y << " " << coll << std::endl;
 	
@@ -99,8 +101,8 @@ void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
 	character->rotation = glm::angleAxis(glm::radians(current_angle), glm::vec3(0.0f, 0.0f, 1.0f));
 
 	// start char at different position to not get stuck in map
-	if (!done) {
+/*	if (!done) {
 		character->position = glm::vec3(1, 0, 0);
 		done = true;
-	}
+	}*/
 } 

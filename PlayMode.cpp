@@ -76,7 +76,7 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 		for (auto &transform : scene.transforms) {
 			if (transform.name == "Player" + std::to_string(i+1)) {
 				players_transform[i] = &transform;
-				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 0.6f));
+				collisionSystem->AddElement(new CollisionSystem::Collidable(collisionSystem, &transform, 0.15f));
 				// add skeletal
 				if(true)	// can only add one skelatal, adding more will break the sahder
 				{

@@ -14,8 +14,8 @@
 static const size_t PLAYER_NUM = 16;
 
 // init positions/rotations for players
-static const glm::vec3 playerInitPos = glm::vec3(-10,-1,0);
-static const glm::vec3 playerInitPosDistance = glm::vec3(-10,0,0);
+static const glm::vec3 playerInitPos = glm::vec3(1,0,0);
+static const glm::vec3 playerInitPosDistance = glm::vec3(0.2,0.2,0);
 static const glm::quat playerInitRot = glm::angleAxis(glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
 // ------------ player class on the client side ------------ //
