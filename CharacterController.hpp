@@ -35,6 +35,7 @@ private:
 	float current_angle;
 	float target_angle;
 	float angle_speed = 720.0f;
+	[[maybe_unused]]
 	bool done = false;
 	std::array<float, 2048*2048> collision_map;
 };
