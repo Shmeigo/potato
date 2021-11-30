@@ -94,7 +94,6 @@ void CharacterController::UpdateCharacter(glm::vec2 movement, float elapsed) {
 	//std::cerr << character->position.x << " " << character->position.y << " " << coll << std::endl;
 	
 	if (coll < 0.95f) {
-		std::cerr << "HIT!\n";
 		character->position = old_position;
 	}
 	//update player orientation
