@@ -28,7 +28,7 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, place, attack;
+	} left, right, down, up, place, attack, block;
 
 	std::vector<AnimationStateMachine> animation_machines;
 	float frametime = 0.f;
@@ -46,6 +46,7 @@ struct PlayMode : Mode {
 	bool can_place = true;
 	bool can_teleport = true;
 	bool both_placed = false;
+	bool pre_move = false;
 
 	// scenes
 	Scene scene;
@@ -64,11 +65,27 @@ struct PlayMode : Mode {
 	const float attackRadius = 2.0f;
 	const glm::vec3 portalInitPos = glm::vec3(-7,-1,-3);
 	uint8_t hit_id = 0; // who I hit (0 means hit no one)
+	bool hitLastTime = false;
 
-	// timer
-	const float hitCD = 1.0f;
+	// attack
+	const float hitCD = 1.5f;
+	const float hitWindup = 0.5f;
 	float hitTimer = 0.0f;
 
+	// block
+	const float blockCD = 0.8f;
+	const float blockZone = 0.3f;
+	float blockTimer = 0.0f;
+
+	// stun
+	const float stunCD = 1.1f;
+	float stunTimer = 0.0f;
+
+	// health
+	const float Maxhealth = 100.0f;
+	const float damage = 25.0f;
+	float health = 100.0f;
+	
 	bool ping;
 
 	// font

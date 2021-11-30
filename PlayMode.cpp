@@ -131,46 +131,46 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			//ignore repeats
 		} else if (evt.key.keysym.sym == SDLK_a) {
 			left.pressed = true;
-			if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
+			//if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_d) {
 			right.pressed = true;
-			if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
+			//if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_w) {
 			up.pressed = true;
-			if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
+			//if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = true;
-			if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
+			//if(my_id != 0) animation_machines[my_id-1].set_state(RUN);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_e) {
 			place.pressed = true;
 			return true;
-		} else if (evt.key.keysym.sym == SDLK_f) {
+		} /*else if (evt.key.keysym.sym == SDLK_f) {
 			if(my_id != 0) animation_machines[my_id-1].set_state(HIT_1);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_v) {
 			if(my_id != 0) animation_machines[my_id-1].set_state(BLOCK);
 			return true;
-		} 
+		} */
 	} else if (evt.type == SDL_KEYUP) {
 		if (evt.key.keysym.sym == SDLK_a) {
 			left.pressed = false;
-			if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
+			//if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_d) {
 			right.pressed = false;
-			if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
+			//if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_w) {
 			up.pressed = false;
-			if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
+			//if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_s) {
 			down.pressed = false;
-			if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
+			//if(my_id != 0) animation_machines[my_id-1].set_state(IDLE);
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_e) {
 			place.pressed = false;
@@ -186,9 +186,17 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			attack.pressed = true;
 			return true;
 		}
+		else if (evt.button.button == SDL_BUTTON_RIGHT) {
+			block.pressed = true;
+			return true;
+		}
 	} else if (evt.type == SDL_MOUSEBUTTONUP) {
 		if (evt.button.button == SDL_BUTTON_LEFT) {
 			attack.pressed = false;
+			return true;
+		}
+		else if (evt.button.button == SDL_BUTTON_RIGHT) {
+			block.pressed = false;
 			return true;
 		}
 	}
@@ -238,57 +246,97 @@ void PlayMode::update(float elapsed) {
 
 	// update my own transform locally
 	if (my_id != 0) {
-		//combine inputs into a force:
-		glm::vec2 force = glm::vec2(0.0f);
-		if (left.pressed && !right.pressed) force.x =-1.0f;
-		if (!left.pressed && right.pressed) force.x = 1.0f;
-		if (down.pressed && !up.pressed) force.y =-1.0f;
-		if (!down.pressed && up.pressed) force.y = 1.0f;
 
-		// update player movement
-		characterController->UpdateCharacter(force, elapsed);
+		if (hitTimer <= 0.0f && blockTimer <= 0.0f && stunTimer <= 0.0f) {
+			//combine inputs into a force:
+			glm::vec2 force = glm::vec2(0.0f);
+			if (left.pressed && !right.pressed) force.x = -1.0f;
+			if (!left.pressed && right.pressed) force.x = 1.0f;
+			if (down.pressed && !up.pressed) force.y = -1.0f;
+			if (!down.pressed && up.pressed) force.y = 1.0f;
 
-		// place portals
-		if (place.pressed && can_place) {
-			if (place_p1) {
-				p1_transform->position = my_transform->position;
-				p1_transform->rotation = my_transform->rotation;
+			// update player movement
+			characterController->UpdateCharacter(force, elapsed);
+
+			// run animation
+			bool cur_move = (force != glm::vec2(0.0f));
+			if (cur_move && !pre_move) {
+				animation_machines[my_id - 1].set_state(RUN);
 			}
-			else {
-				p2_transform->position = my_transform->position;
-				p2_transform->rotation = my_transform->rotation;
-				both_placed = true;
+			if (!cur_move && pre_move){
+				animation_machines[my_id - 1].set_state(IDLE);
 			}
-			can_teleport = false;
-			can_place = false;
-			place_p1 = !place_p1;
+			pre_move = cur_move;
+
+
+			// place portals
+			if (place.pressed && can_place) {
+				if (place_p1) {
+					p1_transform->position = my_transform->position;
+					p1_transform->rotation = my_transform->rotation;
+				}
+				else {
+					p2_transform->position = my_transform->position;
+					p2_transform->rotation = my_transform->rotation;
+					both_placed = true;
+				}
+				can_teleport = false;
+				can_place = false;
+				place_p1 = !place_p1;
+			}
+
+			// check if I stepped into a portal
+			if (glm::distance(my_transform->position, p1_transform->position) < 0.5f &&
+				can_teleport && both_placed) {
+				can_teleport = false;
+				my_transform->position = p2_transform->position;
+			}
+			else if (glm::distance(my_transform->position, p2_transform->position) < 0.5f &&
+				can_teleport && both_placed) {
+				can_teleport = false;
+				my_transform->position = p1_transform->position;
+			}
+			else if (glm::distance(my_transform->position, p1_transform->position) > 0.5f &&
+				glm::distance(my_transform->position, p2_transform->position) > 0.5f) {
+				can_teleport = true;
+			}
 		}
-
-		// check if I stepped into a portal
-		if (glm::distance(my_transform->position, p1_transform->position) < 0.5f && 
-					can_teleport && both_placed) {
-			can_teleport = false;
-			my_transform->position = p2_transform->position;
-		} else if (glm::distance(my_transform->position, p2_transform->position) < 0.5f && 
-					can_teleport && both_placed) {
-			can_teleport = false;
-			my_transform->position = p1_transform->position;
-		} else if (glm::distance(my_transform->position, p1_transform->position) > 0.5f && 
-					glm::distance(my_transform->position, p2_transform->position) > 0.5f) {
-			can_teleport = true;
+		// movement disabled
+		else {
+			pre_move = false;
 		}
 
 		//attack command
 		hit_id = 0;
-		if (hitTimer <= 0.0f) {
+		if (hitTimer <= 0.0f && blockTimer <= 0.0f && stunTimer <= 0.0f) {
+			//initialize attack
 			if (attack.pressed) {
 				hitTimer = hitCD;
-				hit_id = collisionSystem->CheckOverLap(my_id, attackDegree, attackRadius);
-				//std::cout << "attack" << std::endl;
+				animation_machines[my_id - 1].set_state(HIT_1);
 			}
 		}
-		else {
+		else if (hitTimer > 0.0f){
+			float updatedHitTimer = hitTimer - elapsed;
+			if (hitTimer > hitCD - hitWindup && updatedHitTimer <= hitCD - hitWindup) {
+				hit_id = collisionSystem->CheckOverLap(my_id, attackDegree, attackRadius);
+			}
 			hitTimer -= elapsed;
+		}
+
+		//block command
+		if (hitTimer <= 0.0f && blockTimer <= 0.0f && stunTimer <= 0.0f) {
+			if (block.pressed) {
+				blockTimer = blockCD;
+				animation_machines[my_id - 1].set_state(BLOCK);
+			}
+		}
+		else if (blockTimer > 0.0f) {
+			blockTimer -= elapsed;
+		}
+
+		//stun
+		if (stunTimer > 0.0f) {
+			stunTimer -= elapsed;
 		}
 		
 		//fix overlap with other players
@@ -393,9 +441,24 @@ void PlayMode::update(float elapsed) {
 			unsigned int current_frame;
 			client_player.read_from_message(content, id, gotHit, animState, current_frame);
 
-			// Todo: use gotHit below
-			if (id == my_id && gotHit) {
-				std::cout << "I am attacked" << std::endl;
+			// damage logic
+			if (id == my_id) {
+				// someone hit me
+				if (!hitLastTime && gotHit) {
+					// parry successfully
+					if (blockTimer >= blockCD - blockZone) {
+						std::cout << "parry!!" << std::endl;
+					}
+					// no parry
+					else {
+						health -= damage;
+						stunTimer = stunCD;
+						hitTimer = 0.0f;
+						blockTimer = 0.0f;
+						std::cout << "I am damaged!!" << std::endl;
+					}
+				}
+				hitLastTime = gotHit;	
 			}
 
 			// --------- process info ---------- //
