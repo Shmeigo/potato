@@ -107,5 +107,18 @@ struct PlayMode : Mode {
 	//connection to server:
 	Client &client;
 
+	// sounds 
+	const float SONG_REPEAT_TIME = 100.0f;
+	float song_timer = 0.0f;
+	std::shared_ptr<Sound::PlayingSample> background_music;
+	std::shared_ptr<Sound::PlayingSample> combat_music;
+	bool current_background = true;
+	bool start = true;
+
+	bool is_in_combat = false;
+	const float MAX_COMBAT_TIME = 10.0f;
+	float combat_timer = 0.0f;
+	
+
 
 };

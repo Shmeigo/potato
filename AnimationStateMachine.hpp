@@ -4,6 +4,9 @@
 #include <map>
 #include <vector>
 
+
+
+
 enum AnimationState {
 	IDLE,
 	RUN,
@@ -18,7 +21,7 @@ struct AnimationStateMachine {
 	unsigned current_frame;
 	bool state_has_changed = false;
 
-	AnimationStateMachine() {
+	AnimationStateMachine()  {
 		times[IDLE] = {0, 29};
 		times[RUN] = {40, 59};
 		times[HIT_1] = {70, 99};

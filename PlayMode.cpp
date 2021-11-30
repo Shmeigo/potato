@@ -7,11 +7,17 @@
 #include "Load.hpp"
 #include "hex_dump.hpp"
 #include "data_path.hpp"
+#include "Sound.hpp"
+
 
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 
 #include <random>
+
+#define BACKGROUND_VOL 0.3f
+#define COMBAT_VOL 0.5f
+#define FX_VOL 0.4f
 
 GLuint stage_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > stage_meshes(LoadTagDefault, []() -> MeshBuffer const * {
@@ -36,6 +42,40 @@ Load< Scene > stage_scene(LoadTagDefault, []() -> Scene const * {
 
 	});
 });
+
+Load< Sound::Sample > weird_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("Weird.opus"));
+});
+
+Load< Sound::Sample > weirder_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("Weirder.opus"));
+});
+
+Load< Sound::Sample > grime_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("Grime.opus"));
+});
+
+Load< Sound::Sample > swing_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("Swing.opus"));
+});
+
+Load< Sound::Sample > hit_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("Hit.opus"));
+});
+
+Load< Sound::Sample > block_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("Block.opus"));
+});
+
+Load< Sound::Sample > damage_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("Kill.opus"));
+});
+
+Load< Sound::Sample > step_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("Step.opus"));
+});
+
+
 
 PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 	for (int i = 0; i < PLAYER_NUM; i++) {
@@ -112,6 +152,7 @@ PlayMode::PlayMode(Client &client_) : scene(*stage_scene), client(client_) {
 	messageFont = std::make_shared<TextRenderer>(data_path("SeratUltra-1GE24.ttf"));
 	heart = std::make_shared<TwoDRenderer>(data_path("heart.png"));
 	sword = std::make_shared<TwoDRenderer>(data_path("sword.png"));
+
 }
 
 PlayMode::~PlayMode() {
@@ -216,6 +257,8 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 }
 
 void PlayMode::update(float elapsed) {
+	Sound::listener.set_position_right(my_transform->position, my_transform->rotation * glm::vec3(1.0f, 0.0f, 0.0f));
+
 	frametime += elapsed;
 	if (frametime >= 0.03f && my_id != 0) {
 		// std::cerr << "Frametime update starts\n";
@@ -223,6 +266,27 @@ void PlayMode::update(float elapsed) {
 		// time to update animation to new frame
 		for (auto& machine : animation_machines) {
 			machine.update();
+		}
+
+		unsigned times_run_start = animation_machines[0].times[RUN].first;
+		unsigned times_hit_start = animation_machines[0].times[HIT_1].first;
+
+		for (int i = 0; i < PLAYER_NUM; i++) {
+			bool play_step = ((animation_machines[i].current_frame - times_run_start) == 5) || ((animation_machines[i].current_frame - times_run_start) == 15);
+			bool play_swing = (animation_machines[i].current_frame - times_hit_start) == 5;
+
+			switch (animation_machines[i].current_state) {
+				case RUN:
+				if (play_step) Sound::play_3D(*step_sample, FX_VOL, players_transform[i]->position, 1.0f);
+				break;
+
+				case HIT_1:
+				if (play_swing) Sound::play_3D(*swing_sample, FX_VOL, players_transform[i]->position, 1.0f);
+				break;
+
+				default:
+				break;
+			}
 		}
 		// std::cerr << "Animation machine update done\n";
 		// there is only one skeletal right now: the player
@@ -243,6 +307,28 @@ void PlayMode::update(float elapsed) {
 		}
 		// std::cerr << "Frametime update ends\n";
 	}
+	combat_timer -= elapsed;
+	song_timer += elapsed;
+
+	if (is_in_combat && combat_timer <= 0) {
+		is_in_combat = false;
+		combat_music->stop(1.0f);
+		song_timer = SONG_REPEAT_TIME + 1.0f;
+	}
+
+	if ((!is_in_combat) && (start || song_timer >= SONG_REPEAT_TIME)) {
+		start = false;
+		song_timer = 0;
+		current_background = !current_background;
+		if (current_background) {
+			background_music = Sound::play(*weird_sample, BACKGROUND_VOL);
+		}
+		else {
+			background_music = Sound::play(*weirder_sample, BACKGROUND_VOL);
+		}
+	}
+
+	
 
 	// update my own transform locally
 	if (my_id != 0) {
@@ -319,6 +405,16 @@ void PlayMode::update(float elapsed) {
 			float updatedHitTimer = hitTimer - elapsed;
 			if (hitTimer > hitCD - hitWindup && updatedHitTimer <= hitCD - hitWindup) {
 				hit_id = collisionSystem->CheckOverLap(my_id, attackDegree, attackRadius);
+				// if I hit something, play hit sound
+				if (hit_id != 0) {
+					Sound::play_3D(*hit_sample, FX_VOL, players_transform[my_id-1]->position, 1.0f);
+					combat_timer = MAX_COMBAT_TIME;
+					if (!is_in_combat) {
+						is_in_combat = true;
+						background_music->stop(1.0f);
+						combat_music = Sound::loop(*grime_sample, COMBAT_VOL);
+					}
+				}
 			}
 			hitTimer -= elapsed;
 		}
@@ -445,9 +541,17 @@ void PlayMode::update(float elapsed) {
 			if (id == my_id) {
 				// someone hit me
 				if (!hitLastTime && gotHit) {
+					combat_timer = MAX_COMBAT_TIME;
+					if (!is_in_combat) {
+						is_in_combat = true;
+						background_music->stop(1.0f);
+						combat_music = Sound::loop(*grime_sample, COMBAT_VOL);
+					}
+					
 					// parry successfully
 					if (blockTimer >= blockCD - blockZone) {
 						std::cout << "parry!!" << std::endl;
+						Sound::play_3D(*block_sample, FX_VOL, players_transform[my_id-1]->position, 1.0f);
 					}
 					// no parry
 					else {
@@ -456,6 +560,7 @@ void PlayMode::update(float elapsed) {
 						hitTimer = 0.0f;
 						blockTimer = 0.0f;
 						std::cout << "I am damaged!!" << std::endl;
+						Sound::play_3D(*damage_sample, FX_VOL, players_transform[my_id-1]->position, 1.0f);
 					}
 				}
 				hitLastTime = gotHit;	
